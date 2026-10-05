@@ -1,19 +1,20 @@
 import flet as ft
 
-from api import ItemsApi
+from api import PillarsApi
 from config import API_BASE_URL
-from views.items_view import ItemsView
+from views.items_view import PillarsView
 
 
 def main(page: ft.Page):
-    page.title = "Pillars — предметы"
-    page.padding = 20
+    page.title = "Pillars — опоры"
+    page.padding = 8
+    page.spacing = 4
 
-    api = ItemsApi(API_BASE_URL)
-    view = ItemsView(page, api)
+    api = PillarsApi(API_BASE_URL)
+    view = PillarsView(page, api)
 
     page.add(view.build())
-    view.load_items()
+    view.load_pillars()
 
 
 if __name__ == "__main__":
