@@ -3,14 +3,23 @@ name: CI
 on:
   push:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci.yml'
 
 jobs:
-  test:
-    name: Run tests
+  backend-tests:
+    name: Backend tests
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: backend     # ← ключевая строка
+    
     strategy:
       fail-fast: false
       matrix:
@@ -34,10 +43,3 @@ jobs:
 
       - name: Run tests with coverage
         run: pytest --cov=app --cov-report=term-missing --cov-report=xml
-
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.13'
-        uses: codecov/codecov-action@v4
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: false

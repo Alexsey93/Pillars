@@ -7,15 +7,16 @@ __pycache__/
 build/
 dist/
 *.egg-info/
-.installed.cfg
-*.egg
 
-# Виртуальные окружения
+# Виртуальные окружения (в корне и во вложенных папках)
 .venv/
+.venv*/
 venv/
 env/
 ENV/
 .pil_env/
+.pil*
+.pilf*
 
 # Тесты и покрытие
 .pytest_cache/
@@ -23,7 +24,7 @@ ENV/
 htmlcov/
 .tox/
 
-# База данных SQLite
+# Базы данных
 *.db
 *.sqlite
 *.sqlite3
@@ -32,7 +33,7 @@ htmlcov/
 .env
 .env.*
 
-# VS Code
+# IDE
 .vscode/
 .idea/
 
@@ -40,6 +41,6 @@ htmlcov/
 .DS_Store
 Thumbs.db
 
-# Логи и временные файлы
-*.log
-*.tmp
+# Flet
+frontend/build/
+frontend/.flet/
