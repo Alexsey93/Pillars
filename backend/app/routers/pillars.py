@@ -4,16 +4,27 @@ from fastapi import APIRouter, HTTPException, status
 from sqlmodel import select
 
 from app.database import SessionDep
-from app.models import Pillar
+from app.models import Pillar, Registry
 from app.schemas import PillarCreate, PillarRead, PillarUpdate
 
 
 router = APIRouter(prefix="/pillars", tags=["pillars"])
 
 
+async def _validate_registry(session: SessionDep, registry_id: int):
+    reg = await session.get(Registry, registry_id)
+    if reg is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Registry {registry_id} not found",
+        )
+    return reg
+
+
 @router.post("/", response_model=PillarRead, status_code=status.HTTP_201_CREATED)
-async def create_pillar(pillar: PillarCreate, session: SessionDep):
-    db_pillar = Pillar.model_validate(pillar)
+async def create_pillar(data: PillarCreate, session: SessionDep):
+    await _validate_registry(session, data.registry_id)
+    db_pillar = Pillar.model_validate(data)
     session.add(db_pillar)
     await session.commit()
     await session.refresh(db_pillar)
@@ -21,8 +32,16 @@ async def create_pillar(pillar: PillarCreate, session: SessionDep):
 
 
 @router.get("/", response_model=list[PillarRead])
-async def list_pillars(session: SessionDep, skip: int = 0, limit: int = 20):
-    statement = select(Pillar).offset(skip).limit(limit)
+async def list_pillars(
+    session: SessionDep,
+    registry_id: int | None = None,
+    skip: int = 0,
+    limit: int = 50,
+):
+    statement = select(Pillar)
+    if registry_id is not None:
+        statement = statement.where(Pillar.registry_id == registry_id)
+    statement = statement.offset(skip).limit(limit)
     result = await session.execute(statement)
     return result.scalars().all()
 
@@ -39,29 +58,31 @@ async def get_pillar(pillar_id: int, session: SessionDep):
 
 
 @router.patch("/{pillar_id}", response_model=PillarRead)
-async def update_pillar(pillar_id: int, pillar: PillarUpdate, session: SessionDep):
-    db_pillar = await session.get(Pillar, pillar_id)
-    if db_pillar is None:
+async def update_pillar(pillar_id: int, data: PillarUpdate, session: SessionDep):
+    pillar = await session.get(Pillar, pillar_id)
+    if pillar is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pillar {pillar_id} not found",
         )
-    update_data = pillar.model_dump(exclude_unset=True)
-    db_pillar.sqlmodel_update(update_data)
-    db_pillar.updated_at = datetime.now(timezone.utc)
-    session.add(db_pillar)
+    update_data = data.model_dump(exclude_unset=True)
+    if "registry_id" in update_data:
+        await _validate_registry(session, update_data["registry_id"])
+    pillar.sqlmodel_update(update_data)
+    pillar.updated_at = datetime.now(timezone.utc)
+    session.add(pillar)
     await session.commit()
-    await session.refresh(db_pillar)
-    return db_pillar
+    await session.refresh(pillar)
+    return pillar
 
 
 @router.delete("/{pillar_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_pillar(pillar_id: int, session: SessionDep):
-    db_pillar = await session.get(Pillar, pillar_id)
-    if db_pillar is None:
+    pillar = await session.get(Pillar, pillar_id)
+    if pillar is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Pillar {pillar_id} not found",
         )
-    await session.delete(db_pillar)
+    await session.delete(pillar)
     await session.commit()

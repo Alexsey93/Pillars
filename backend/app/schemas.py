@@ -5,11 +5,40 @@ from app.models import Material, ClassVoltage
 from app.regions import Region
 
 
-class PillarBase(SQLModel):
+# ============================================================
+# REGISTRY
+# ============================================================
+
+class RegistryBase(SQLModel):
     region: Region
     raion: str | None = Field(default=None, max_length=200)
     city: str | None = Field(default=None, max_length=200)
-    address: str | None = Field(default=None, max_length=300)
+    street: str = Field(min_length=1, max_length=300)
+
+
+class RegistryCreate(RegistryBase):
+    pass
+
+
+class RegistryUpdate(SQLModel):
+    region: Region | None = None
+    raion: str | None = Field(default=None, max_length=200)
+    city: str | None = Field(default=None, max_length=200)
+    street: str | None = Field(default=None, min_length=1, max_length=300)
+
+
+class RegistryRead(RegistryBase):
+    id: int
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+# ============================================================
+# PILLAR
+# ============================================================
+
+class PillarBase(SQLModel):
+    registry_id: int
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     owner: str | None = Field(default=None, max_length=300)
@@ -37,10 +66,7 @@ class PillarCreate(PillarBase):
 
 
 class PillarUpdate(SQLModel):
-    region: Region | None = None
-    raion: str | None = Field(default=None, max_length=200)
-    city: str | None = Field(default=None, max_length=200)
-    address: str | None = Field(default=None, max_length=300)
+    registry_id: int | None = None
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     owner: str | None = Field(default=None, max_length=300)
