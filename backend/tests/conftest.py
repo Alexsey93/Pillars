@@ -12,7 +12,7 @@ from sqlmodel import SQLModel
 
 from app.database import get_session
 from app.main import app
-from app.models import Pillar  # noqa: F401
+from app.models import Pillar, Registry
 
 
 # ============================================================
