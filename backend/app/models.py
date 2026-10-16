@@ -8,10 +8,6 @@ from app.regions import Region
 from app.database import Base
 
 
-# ============================================================
-# ENUM'Ы
-# ============================================================
-
 class Material(str, Enum):
     REINFORCED_CONCRETE = "Железобетон"
     WOOD = "Дерево"
@@ -30,62 +26,39 @@ class ClassVoltage(str, Enum):
     OTHER = "Другое"
 
 
-# ============================================================
-# МОДЕЛИ
-# ============================================================
-
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    """Модель пользователя для FastAPI Users (SQLAlchemy)."""
+    """Модель пользователя. Поле email хранит username."""
     __tablename__ = "user"
     pass
 
 
 class Registry(SQLModel, table=True):
-    """Реестр опор по одной улице."""
     id: int | None = Field(default=None, primary_key=True)
-
     region: Region = Field(index=True)
     raion: str | None = Field(default=None, index=True)
     city: str | None = Field(default=None, index=True)
     street: str = Field(index=True)
-
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime | None = Field(default=None)
-
     pillars: list["Pillar"] = Relationship(back_populates="registry_obj")
 
 
 class Pillar(SQLModel, table=True):
-    """Опора ЛЭП с кабелями Ростелеком."""
     id: int | None = Field(default=None, primary_key=True)
-
-    # Привязка к реестру
     registry_id: int = Field(foreign_key="registry.id", index=True)
     registry_obj: Registry | None = Relationship(back_populates="pillars")
-
-    # Адрес
     house_number: str | None = Field(default=None, max_length=50)
-
-    # Координаты
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
-
-    # Владелец и учёт
     owner: str | None = Field(default=None)
     number_owner_pilar: str | None = Field(default=None)
-
-    # Характеристики опоры
     material: Material | None = Field(default=None)
     height: float | None = Field(default=None, ge=0, le=200)
     class_voltage: ClassVoltage | None = Field(default=None)
-
-    # Подвесы и кабели Ростелеком
     cnt_fastening: int = Field(default=0, ge=0)
     cnt_vok_not_ab: int = Field(default=0, ge=0)
     cnt_mzhk_not_ab: int = Field(default=0, ge=0)
     cnt_ab_vok_mzhk: int = Field(default=0, ge=0)
-
-    # Оборудование Ростелеком
     cnt_o_coup: int = Field(default=0, ge=0)
     cnt_vols_upmk: int = Field(default=0, ge=0)
     cnt_m_coup: int = Field(default=0, ge=0)
@@ -94,7 +67,5 @@ class Pillar(SQLModel, table=True):
     cnt_ork: int = Field(default=0, ge=0)
     cnt_rk: int = Field(default=0, ge=0)
     cnt_out_on_earth: int = Field(default=0, ge=0)
-
-    # Служебные
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime | None = Field(default=None)

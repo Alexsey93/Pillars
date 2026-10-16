@@ -1,7 +1,7 @@
 import flet as ft
 
 from api import PillarsApi
-from auth import auth_state, login
+from auth import auth_state, login_or_register
 
 
 class LoginView:
@@ -11,24 +11,41 @@ class LoginView:
         self.on_success = on_success
 
     def build(self) -> ft.Control:
-        email_field = ft.TextField(
-            label="Email", autofocus=True, width=300
+        username_field = ft.TextField(
+            label="Имя пользователя", autofocus=True, width=300
         )
         password_field = ft.TextField(
             label="Пароль", password=True, can_reveal_password=True, width=300
         )
+        invite_field = ft.TextField(
+            label="Инвайт-код (только для новых)",
+            width=300, password=True, can_reveal_password=True,
+        )
         error_text = ft.Text("", color=ft.Colors.RED_400, size=12)
 
         async def do_login(e=None):
-            email = (email_field.value or "").strip()
+            username = (username_field.value or "").strip()
             pwd = (password_field.value or "").strip()
-            if not email or not pwd:
-                error_text.value = "Введите email и пароль"
+            invite = (invite_field.value or "").strip()
+
+            if not username or not pwd:
+                error_text.value = "Введите имя пользователя и пароль"
                 self.page.update()
                 return
+            if len(pwd) < 6:
+                error_text.value = "Пароль должен быть не короче 6 символов"
+                self.page.update()
+                return
+
             try:
-                token = await login(self.api.base_url, email, pwd)
-                auth_state.set_token(token)
+                token, user_info = await login_or_register(
+                    self.api.base_url, username, pwd, invite
+                )
+                auth_state.set_session(
+                    token=token,
+                    username=user_info["email"],
+                    is_superuser=user_info.get("is_superuser", False),
+                )
                 await self.api.reset_client()
                 self.on_success()
             except ValueError as err:
@@ -48,10 +65,15 @@ class LoginView:
             content=ft.Column(
                 controls=[
                     ft.Text("Pillars", size=32, weight=ft.FontWeight.BOLD),
-                    ft.Text("Вход в систему", size=14, color=ft.Colors.GREY_600),
+                    ft.Text(
+                        "Введите имя и пароль. Для нового пользователя — инвайт-код.",
+                        size=12, color=ft.Colors.GREY_600,
+                        text_align=ft.TextAlign.CENTER, width=300,
+                    ),
                     ft.Container(height=20),
-                    email_field,
+                    username_field,
                     password_field,
+                    invite_field,
                     error_text,
                     ft.Container(height=8),
                     login_btn,

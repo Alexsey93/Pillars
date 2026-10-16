@@ -7,13 +7,7 @@ from models import Pillar, Registry
 
 
 class PillarsView:
-    def __init__(
-        self,
-        page: ft.Page,
-        api: PillarsApi,
-        registry: Registry,
-        on_back,
-    ):
+    def __init__(self, page, api, registry: Registry, on_back):
         self.page = page
         self.api = api
         self.registry = registry
@@ -22,7 +16,7 @@ class PillarsView:
         self.list_column = ft.Column(
             spacing=6,
             scroll=ft.ScrollMode.AUTO,
-            expand=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
     def show_error(self, message: str):
@@ -57,6 +51,7 @@ class PillarsView:
                         italic=True,
                         size=13,
                         color=ft.Colors.GREY_600,
+                        text_align=ft.TextAlign.CENTER,
                     ),
                     padding=ft.Padding(left=8, top=16, right=8, bottom=16),
                 )
@@ -81,12 +76,13 @@ class PillarsView:
 
         title = f"Опора #{pillar.id}"
         if pillar.house_number:
-            title = f"Опора #{pillar.id} · д. {pillar.house_number}"
+            title += f" · д. {pillar.house_number}"
 
         return ft.Container(
             padding=ft.Padding(left=12, top=8, right=4, bottom=8),
             border=ft.Border.all(1, ft.Colors.GREY_300),
             border_radius=ft.BorderRadius.all(6),
+            width=560,
             on_click=lambda e: self._edit_pillar(pillar),
             content=ft.Row(
                 controls=[
@@ -168,20 +164,6 @@ class PillarsView:
             tooltip="К реестрам",
             on_click=lambda e: self.on_back(),
         )
-        add_btn = ft.FilledButton(
-            content="Добавить опору",
-            icon=ft.Icons.ADD,
-            on_click=self._add_pillar,
-            height=36,
-            style=button_style,
-        )
-        refresh_btn = ft.Button(
-            content="Обновить",
-            icon=ft.Icons.REFRESH,
-            on_click=lambda e: self.page.run_task(self.load_pillars),
-            height=36,
-            style=button_style,
-        )
 
         subtitle_parts = []
         if self.registry.raion:
@@ -213,20 +195,44 @@ class PillarsView:
                         else self.registry.region,
                         size=12,
                         color=ft.Colors.GREY_700,
+                        text_align=ft.TextAlign.CENTER,
                     ),
                     ft.Row(
-                        controls=[refresh_btn, add_btn],
+                        controls=[
+                            ft.Button(
+                                content="Обновить",
+                                icon=ft.Icons.REFRESH,
+                                on_click=lambda e: self.page.run_task(self.load_pillars),
+                                height=36,
+                                style=button_style,
+                            ),
+                            ft.FilledButton(
+                                content="Добавить опору",
+                                icon=ft.Icons.ADD,
+                                on_click=self._add_pillar,
+                                height=36,
+                                style=button_style,
+                            ),
+                        ],
                         spacing=8,
-                        alignment=ft.MainAxisAlignment.END,
+                        alignment=ft.MainAxisAlignment.CENTER,
+                        wrap=True,
                     ),
                 ],
                 spacing=6,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             ),
             padding=ft.Padding(left=4, top=8, right=4, bottom=8),
         )
 
-        return ft.Column(
+        content = ft.Column(
             controls=[header, self.loading, self.list_column],
             spacing=12,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        return ft.Container(
+            content=content,
+            alignment=ft.Alignment.TOP_CENTER,
             expand=True,
         )

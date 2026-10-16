@@ -1,6 +1,7 @@
 import flet as ft
 
 from api import PillarsApi, ApiError
+from auth import auth_state
 from dialogs.confirm import open_confirm_dialog
 from dialogs.registry_form import (
     open_registry_add_dialog,
@@ -10,15 +11,16 @@ from models import Registry
 
 
 class RegistriesView:
-    def __init__(self, page: ft.Page, api: PillarsApi, on_open_registry):
+    def __init__(self, page, api, on_open_registry, on_logout):
         self.page = page
         self.api = api
         self.on_open_registry = on_open_registry
+        self.on_logout = on_logout
         self.loading = ft.ProgressRing(visible=False)
         self.list_column = ft.Column(
             spacing=6,
             scroll=ft.ScrollMode.AUTO,
-            expand=True,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
 
     def show_error(self, message: str):
@@ -53,6 +55,7 @@ class RegistriesView:
                         italic=True,
                         size=13,
                         color=ft.Colors.GREY_600,
+                        text_align=ft.TextAlign.CENTER,
                     ),
                     padding=ft.Padding(left=8, top=16, right=8, bottom=16),
                 )
@@ -74,6 +77,7 @@ class RegistriesView:
             padding=ft.Padding(left=12, top=8, right=4, bottom=8),
             border=ft.Border.all(1, ft.Colors.GREY_300),
             border_radius=ft.BorderRadius.all(6),
+            width=560,
             on_click=lambda e: self.on_open_registry(reg),
             content=ft.Row(
                 controls=[
@@ -165,39 +169,44 @@ class RegistriesView:
             text_style=ft.TextStyle(size=13),
         )
 
-        add_btn = ft.FilledButton(
-            content="Создать реестр",
-            icon=ft.Icons.ADD,
-            on_click=self._add_registry,
-            height=36,
-            style=button_style,
-        )
-        refresh_btn = ft.Button(
-            content="Обновить",
-            icon=ft.Icons.REFRESH,
-            on_click=lambda e: self.page.run_task(self.load_registries),
-            height=36,
-            style=button_style,
-        )
+        title = f"Реестры — {auth_state.username}"
+        if auth_state.is_superuser:
+            title += " (админ)"
 
         header = ft.Container(
             content=ft.Column(
                 controls=[
-                    ft.Row(
-                        controls=[
-                            ft.Text(
-                                "Реестры",
-                                size=22,
-                                weight=ft.FontWeight.BOLD,
-                                text_align=ft.TextAlign.CENTER,
-                            ),
-                        ],
-                        alignment=ft.MainAxisAlignment.CENTER,
+                    ft.Text(
+                        title,
+                        size=18,
+                        weight=ft.FontWeight.BOLD,
+                        text_align=ft.TextAlign.CENTER,
                     ),
                     ft.Row(
-                        controls=[refresh_btn, add_btn],
+                        controls=[
+                            ft.Button(
+                                content="Обновить",
+                                icon=ft.Icons.REFRESH,
+                                on_click=lambda e: self.page.run_task(self.load_registries),
+                                height=36,
+                                style=button_style,
+                            ),
+                            ft.FilledButton(
+                                content="Создать реестр",
+                                icon=ft.Icons.ADD,
+                                on_click=self._add_registry,
+                                height=36,
+                                style=button_style,
+                            ),
+                            ft.IconButton(
+                                icon=ft.Icons.LOGOUT,
+                                tooltip="Выйти",
+                                on_click=lambda e: self.on_logout(),
+                            ),
+                        ],
                         spacing=8,
                         alignment=ft.MainAxisAlignment.CENTER,
+                        wrap=True,
                     ),
                 ],
                 spacing=8,
@@ -206,8 +215,14 @@ class RegistriesView:
             padding=ft.Padding(left=8, top=8, right=8, bottom=8),
         )
 
-        return ft.Column(
+        content = ft.Column(
             controls=[header, self.loading, self.list_column],
             spacing=12,
+            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        )
+
+        return ft.Container(
+            content=content,
+            alignment=ft.Alignment.TOP_CENTER,
             expand=True,
         )

@@ -15,5 +15,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me"
     jwt_expire_minutes: int = 60
 
+    invite_code: str = "Инвентаризация"   # ← новый параметр
+
 
 settings = Settings()

@@ -1,7 +1,7 @@
 import flet as ft
 
 from api import PillarsApi
-from auth import auth_state
+from auth import auth_state, logout
 from config import API_BASE_URL
 from models import Registry
 from views.login_view import LoginView
@@ -16,29 +16,28 @@ def main(page: ft.Page):
 
     api = PillarsApi(API_BASE_URL)
 
-    # ========================================================
-    # НАВИГАЦИЯ
-    # ========================================================
+    def do_logout():
+        """Логаут: очищает токен и возвращает на экран входа."""
+        token = auth_state.token
+        auth_state.clear()
+        if token:
+            page.run_task(logout, api.base_url, token)
+        page.run_task(api.reset_client)
+        show_login()
 
     def show_login():
-        """Экран входа."""
         view = LoginView(page, api, on_success=show_registries)
         page.views.clear()
         page.views.append(
-            ft.View(
-                route="/login",
-                controls=[view.build()],
-                padding=0,
-            )
+            ft.View(route="/login", controls=[view.build()], padding=0)
         )
         page.update()
 
     def show_registries(e=None):
-        """Показывает список реестров."""
         view = RegistriesView(
-            page=page,
-            api=api,
+            page=page, api=api,
             on_open_registry=open_registry,
+            on_logout=do_logout,
         )
         page.views.clear()
         page.views.append(
@@ -52,12 +51,8 @@ def main(page: ft.Page):
         page.run_task(view.load_registries)
 
     def open_registry(registry: Registry):
-        """Открывает экран опор выбранного реестра."""
         view = PillarsView(
-            page=page,
-            api=api,
-            registry=registry,
-            on_back=go_back,
+            page=page, api=api, registry=registry, on_back=go_back,
         )
         page.views.append(
             ft.View(
@@ -70,16 +65,11 @@ def main(page: ft.Page):
         page.run_task(view.load_pillars)
 
     def go_back(e=None):
-        """Возврат на предыдущий экран."""
         if len(page.views) > 1:
             page.views.pop()
             page.update()
 
     page.on_view_pop = go_back
-
-    # ========================================================
-    # СТАРТ
-    # ========================================================
 
     if auth_state.is_authenticated():
         show_registries()

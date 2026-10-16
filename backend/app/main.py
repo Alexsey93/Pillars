@@ -18,26 +18,30 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_title, lifespan=lifespan)
 
-# ============================================================
-# ROUTERS
-# ============================================================
-
+# Логин / логаут
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth/jwt",
     tags=["auth"],
 )
+
+# Регистрация с инвайт-кодом
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/auth",
     tags=["auth"],
 )
+
+# Управление пользователями:
+# - обычный пользователь: только свой профиль (GET/PATCH /users/me)
+# - администратор: список всех, редактирование/удаление любого
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"],
 )
 
+# Ваши роутеры (полный CRUD для всех авторизованных)
 app.include_router(registries.router)
 app.include_router(pillars.router)
 

@@ -27,6 +27,8 @@ engine = create_async_engine(
     settings.database_url,
     echo=settings.db_echo,
     future=True,
+    pool_pre_ping=True,       # проверять соединение перед использованием
+    pool_recycle=180,         # пересоздавать соединения старше 3 минут
 )
 
 async_session = async_sessionmaker(
