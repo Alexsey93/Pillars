@@ -2,12 +2,12 @@ import flet as ft
 import flet_geolocator as ftg
 
 from api import PillarsApi, ApiError
-from config import REGIONS, MATERIALS, CLASS_VOLTAGES
+from config import MATERIALS, CLASS_VOLTAGES
 from dialogs.map_picker import open_map_picker
 from models import Pillar
 
 FIELD_WIDTH = 360
-HINT_STYLE = ft.TextStyle(size=13, color=ft.Colors.GREY_600)
+LABEL_STYLE = ft.TextStyle(size=12, color=ft.Colors.GREY_700)
 DIALOG_PADDING = ft.Padding(left=16, top=20, right=16, bottom=8)
 
 
@@ -89,7 +89,7 @@ async def _open_map_for_pick_async(
 
 
 # ============================================================
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ПОЛЕЙ
+# ВСПОМОГАТЕЛЬНЫЕ
 # ============================================================
 
 def _number_field(label: str, value, is_int: bool = False) -> ft.TextField:
@@ -100,8 +100,8 @@ def _number_field(label: str, value, is_int: bool = False) -> ft.TextField:
     else:
         text = str(value)
     return ft.TextField(
-        hint_text=label,
-        hint_style=HINT_STYLE,
+        label=label,
+        label_style=LABEL_STYLE,
         value=text,
         keyboard_type=ft.KeyboardType.NUMBER,
         width=FIELD_WIDTH,
@@ -110,10 +110,66 @@ def _number_field(label: str, value, is_int: bool = False) -> ft.TextField:
 
 def _text_field(label: str, value) -> ft.TextField:
     return ft.TextField(
-        hint_text=label,
-        hint_style=HINT_STYLE,
+        label=label,
+        label_style=LABEL_STYLE,
         value=value or "",
         width=FIELD_WIDTH,
+    )
+
+
+def _counter_field(
+    label: str, value: int, tooltip: str | None = None
+) -> ft.TextField:
+    """Числовое поле для счётчика с явной подписью и иконкой-подсказкой."""
+    field = ft.TextField(
+        label=label,
+        label_style=LABEL_STYLE,
+        value=str(int(value)) if value else "0",
+        keyboard_type=ft.KeyboardType.NUMBER,
+        width=FIELD_WIDTH,
+    )
+
+    if tooltip:
+        field.suffix_icon = ft.Icon(
+            ft.Icons.INFO_OUTLINE,
+            size=16,
+            color=ft.Colors.GREY_500,
+            tooltip=tooltip,
+        )
+
+    return field
+
+
+def _dropdown_field(
+    label: str, options: list[str], value: str | None
+) -> ft.Dropdown:
+    """Выпадающий список с явной подписью."""
+    return ft.Dropdown(
+        label=label,
+        label_style=LABEL_STYLE,
+        options=[ft.dropdown.Option(o) for o in options],
+        value=value,
+        width=FIELD_WIDTH,
+    )
+
+
+def _section_hint(text: str) -> ft.Container:
+    """Серая плашка с пояснением в начале секции."""
+    return ft.Container(
+        content=ft.Row(
+            controls=[
+                ft.Icon(ft.Icons.INFO_OUTLINE, size=14, color=ft.Colors.GREY_500),
+                ft.Text(
+                    text,
+                    size=11,
+                    color=ft.Colors.GREY_600,
+                    expand=True,
+                ),
+            ],
+            spacing=6,
+            vertical_alignment=ft.CrossAxisAlignment.START,
+        ),
+        padding=ft.Padding(left=0, top=0, right=0, bottom=8),
     )
 
 
@@ -142,16 +198,9 @@ def _float_value(field: ft.TextField) -> float | None:
 # ============================================================
 
 def _build_fields(pillar: Pillar | None, page: ft.Page):
-    region_dd = ft.Dropdown(
-        hint_text="Регион *",
-        hint_style=HINT_STYLE,
-        options=[ft.dropdown.Option(r) for r in REGIONS],
-        value=pillar.region if pillar else None,
-        width=FIELD_WIDTH,
+    house_number_field = _text_field(
+        "Номер дома", pillar.house_number if pillar else None
     )
-    raion_field = _text_field("Район", pillar.raion if pillar else None)
-    city_field = _text_field("Населённый пункт", pillar.city if pillar else None)
-    address_field = _text_field("Улица", pillar.address if pillar else None)
     lat_field = _number_field("Широта", pillar.latitude if pillar else None)
     lon_field = _number_field("Долгота", pillar.longitude if pillar else None)
 
@@ -197,46 +246,118 @@ def _build_fields(pillar: Pillar | None, page: ft.Page):
         pillar.number_owner_pilar if pillar else None,
     )
 
-    material_dd = ft.Dropdown(
-        hint_text="Материал опоры",
-        hint_style=HINT_STYLE,
-        options=[ft.dropdown.Option(m) for m in MATERIALS],
-        value=pillar.material if pillar else None,
-        width=FIELD_WIDTH,
+    material_dd = _dropdown_field(
+        "Материал опоры",
+        MATERIALS,
+        pillar.material if pillar else None,
     )
     height_field = _number_field("Высота, м", pillar.height if pillar else None)
-    voltage_dd = ft.Dropdown(
-        hint_text="Класс напряжения",
-        hint_style=HINT_STYLE,
-        options=[ft.dropdown.Option(v) for v in CLASS_VOLTAGES],
-        value=pillar.class_voltage if pillar else None,
-        width=FIELD_WIDTH,
+    voltage_dd = _dropdown_field(
+        "Класс напряжения",
+        CLASS_VOLTAGES,
+        pillar.class_voltage if pillar else None,
     )
 
-    counters = {
-        "cnt_fastening": "Кол-во точек подвеса Ростелеком",
-        "cnt_vok_not_ab": "Кол-во оптических кабелей Ростелеком (не абон.)",
-        "cnt_mzhk_not_ab": "Кол-во медно-жильных кабелей Ростелеком (не абон.)",
-        "cnt_ab_vok_mzhk": "Кол-во абонентских линий (оптика+медь)",
-        "cnt_o_coup": "Кол-во оптических муфт Ростелеком",
-        "cnt_vols_upmk": "Кол-во ВОЛС УПМК",
-        "cnt_m_coup": "Кол-во муфт МЖК Ростелеком",
-        "cnt_mzhk_upmk": "Кол-во МЖК УПМК",
-        "cnt_shk": "Кол-во шкафов Ростелеком",
-        "cnt_ork": "Кол-во ОРК Ростелеком",
-        "cnt_rk": "Кол-во РК Ростелеком",
-        "cnt_out_on_earth": "Кол-во выводов кабеля из грунта",
+    counters_meta = {
+        "cnt_fastening": {
+            "label": "Кол-во точек подвеса Ростелеком",
+            "tooltip": (
+                "Количество точек крепления кабелей Ростелеком на этой опоре. "
+                "Точка подвеса — место, где кабель закреплён на опоре "
+                "(крюк, кронштейн, арматура)."
+            ),
+        },
+        "cnt_vok_not_ab": {
+            "label": "Кол-во оптических кабелей Ростелеком (не абон.)",
+            "tooltip": (
+                "Количество оптических кабелей (ВОК) на опоре, "
+                "исключая абонентские линии. Магистральные и распределительные ВОК."
+            ),
+        },
+        "cnt_mzhk_not_ab": {
+            "label": "Кол-во медно-жильных кабелей Ростелеком (не абон.)",
+            "tooltip": (
+                "Количество медно-жильных кабелей (МЖК) на опоре, "
+                "исключая абонентские линии. Магистральные и распределительные МЖК."
+            ),
+        },
+        "cnt_ab_vok_mzhk": {
+            "label": "Кол-во абонентских линий (оптика+медь)",
+            "tooltip": (
+                "Суммарное количество абонентских линий на опоре — "
+                "и оптических, и медных. Это линии, идущие непосредственно "
+                "к абонентам (в дома)."
+            ),
+        },
+        "cnt_o_coup": {
+            "label": "Кол-во оптических муфт Ростелеком",
+            "tooltip": (
+                "Количество оптических муфт на опоре. "
+                "Муфта — устройство для соединения и ответвления оптических волокон."
+            ),
+        },
+        "cnt_vols_upmk": {
+            "label": "Кол-во ВОЛС УПМК",
+            "tooltip": (
+                "Количество ВОЛС УПМК (устройство для подвески муфт и запаса кабеля) "
+                "на опоре. Применяется для организации запаса оптического кабеля "
+                "и подвески оптических муфт."
+            ),
+        },
+        "cnt_m_coup": {
+            "label": "Кол-во муфт МЖК Ростелеком",
+            "tooltip": (
+                "Количество муфт медно-жильных кабелей (МЖК) на опоре. "
+                "Муфта — устройство для соединения и ответвления медных жил."
+            ),
+        },
+        "cnt_mzhk_upmk": {
+            "label": "Кол-во МЖК УПМК",
+            "tooltip": (
+                "Количество МЖК УПМК (устройство для подвески муфт и запаса кабеля) "
+                "на опоре. Применяется для организации запаса медного кабеля "
+                "и подвески муфт МЖК."
+            ),
+        },
+        "cnt_shk": {
+            "label": "Кол-во шкафов Ростелеком",
+            "tooltip": (
+                "Количество распределительных шкафов Ростелеком на опоре. "
+                "Шкаф — уличное устройство для коммутации абонентских линий."
+            ),
+        },
+        "cnt_ork": {
+            "label": "Кол-во ОРК Ростелеком",
+            "tooltip": (
+                "Количество оптических распределительных коробок (ОРК) на опоре. "
+                "ОРК — устройство для подключения абонентов к оптической сети."
+            ),
+        },
+        "cnt_rk": {
+            "label": "Кол-во РК Ростелеком",
+            "tooltip": (
+                "Количество распределительных коробок (РК) на опоре. "
+                "РК — устройство для подключения абонентов к медной сети."
+            ),
+        },
+        "cnt_out_on_earth": {
+            "label": "Кол-во выводов кабеля из грунта",
+            "tooltip": (
+                "Количество мест, где кабель выходит из земли на опору. "
+                "Это точки перехода подземной прокладки в воздушную."
+            ),
+        },
     }
+
     counter_fields = {}
-    for key, label in counters.items():
+    for key, meta in counters_meta.items():
         val = getattr(pillar, key, 0) if pillar else 0
-        counter_fields[key] = _number_field(label, val, is_int=True)
+        counter_fields[key] = _counter_field(
+            meta["label"], val, tooltip=meta["tooltip"]
+        )
 
     return {
-        "region_dd": region_dd,
-        "raion_field": raion_field,
-        "city_field": city_field,
-        "address_field": address_field,
+        "house_number_field": house_number_field,
         "lat_field": lat_field,
         "lon_field": lon_field,
         "location_btn": location_btn,
@@ -254,24 +375,15 @@ def _build_fields(pillar: Pillar | None, page: ft.Page):
 # СБОРКА PAYLOAD
 # ============================================================
 
-def _build_payload(fields: dict) -> dict:
-    region = fields["region_dd"].value
-    if not region:
-        raise ValueError("Регион обязателен")
+def _build_payload(fields: dict, registry_id: int) -> dict:
+    payload = {"registry_id": registry_id}
 
-    payload = {"region": region}
+    # Номер дома
+    house = (fields["house_number_field"].value or "").strip()
+    if house:
+        payload["house_number"] = house
 
-    for key in (
-        "raion_field",
-        "city_field",
-        "address_field",
-        "owner_field",
-        "number_owner_field",
-    ):
-        val = (fields[key].value or "").strip()
-        if val:
-            payload[key.replace("_field", "")] = val
-
+    # Координаты и высота
     for key, name in (
         ("lat_field", "latitude"),
         ("lon_field", "longitude"),
@@ -281,11 +393,19 @@ def _build_payload(fields: dict) -> dict:
         if val is not None:
             payload[name] = val
 
+    # Текстовые поля
+    for key in ("owner_field", "number_owner_field"):
+        val = (fields[key].value or "").strip()
+        if val:
+            payload[key.replace("_field", "")] = val
+
+    # Выпадающие списки
     if fields["material_dd"].value:
         payload["material"] = fields["material_dd"].value
     if fields["voltage_dd"].value:
         payload["class_voltage"] = fields["voltage_dd"].value
 
+    # Счётчики
     for key, field in fields["counters"].items():
         val = _int_value(field)
         if val is not None and val != 0:
@@ -300,56 +420,82 @@ def _build_payload(fields: dict) -> dict:
 
 def _build_form(fields: dict) -> ft.Column:
     counters = fields["counters"]
+
+    def section(controls: list) -> ft.Column:
+        """Обёртка для содержимого секции с отступами между полями."""
+        return ft.Column(
+            controls=controls,
+            spacing=12,
+            tight=True,
+        )
+
     return ft.Column(
         controls=[
             ft.ExpansionTile(
-                title=ft.Text("Локация", size=14),
+                title=ft.Text("Адрес и координаты", size=14),
                 expanded=True,
                 controls=[
-                    fields["region_dd"],
-                    fields["raion_field"],
-                    fields["city_field"],
-                    fields["address_field"],
-                    fields["lat_field"],
-                    fields["lon_field"],
-                    ft.Row(
-                        controls=[
-                            fields["location_btn"],
-                            fields["pick_on_map_btn"],
-                        ],
-                        spacing=8,
-                        wrap=True,
-                        alignment=ft.MainAxisAlignment.START,
-                    ),
+                    section([
+                        fields["house_number_field"],
+                        fields["lat_field"],
+                        fields["lon_field"],
+                        ft.Row(
+                            controls=[
+                                fields["location_btn"],
+                                fields["pick_on_map_btn"],
+                            ],
+                            spacing=8,
+                            wrap=True,
+                            alignment=ft.MainAxisAlignment.START,
+                        ),
+                    ]),
                 ],
             ),
             ft.ExpansionTile(
                 title=ft.Text("Владелец и учёт", size=14),
                 controls=[
-                    fields["owner_field"],
-                    fields["number_owner_field"],
+                    section([
+                        fields["owner_field"],
+                        fields["number_owner_field"],
+                    ]),
                 ],
             ),
             ft.ExpansionTile(
                 title=ft.Text("Характеристики опоры", size=14),
                 controls=[
-                    fields["material_dd"],
-                    fields["height_field"],
-                    fields["voltage_dd"],
+                    section([
+                        fields["material_dd"],
+                        fields["height_field"],
+                        fields["voltage_dd"],
+                    ]),
                 ],
             ),
             ft.ExpansionTile(
                 title=ft.Text("Кабели и подвесы Ростелеком", size=14),
                 controls=[
-                    counters["cnt_fastening"],
-                    counters["cnt_vok_not_ab"],
-                    counters["cnt_mzhk_not_ab"],
-                    counters["cnt_ab_vok_mzhk"],
+                    section([
+                        _section_hint(
+                            "Укажите количество кабелей, точек подвеса и абонентских линий "
+                            "на этой опоре. Оставьте 0, если элемент отсутствует."
+                        ),
+                        counters["cnt_fastening"],
+                        counters["cnt_vok_not_ab"],
+                        counters["cnt_mzhk_not_ab"],
+                        counters["cnt_ab_vok_mzhk"],
+                    ]),
                 ],
             ),
             ft.ExpansionTile(
                 title=ft.Text("Оборудование Ростелеком", size=14),
-                controls=list(counters.values())[4:],
+                controls=[
+                    section([
+                        _section_hint(
+                            "Укажите количество муфт, шкафов, коробок и других устройств "
+                            "Ростелеком, размещённых на опоре. Оставьте 0, если элемента нет."
+                        ),
+                        *list(counters.values())[4:],
+                    ]),
+                ],
             ),
         ],
         scroll=ft.ScrollMode.AUTO,
@@ -361,12 +507,15 @@ def _build_form(fields: dict) -> ft.Column:
 
 
 # ============================================================
-# АСИНХРОННЫЕ СОХРАНЕНИЯ
+# СОХРАНЕНИЯ
 # ============================================================
 
-async def _save_new(page, api: PillarsApi, fields, on_success, show_error, show_info):
+async def _save_new(
+    page, api: PillarsApi, registry_id: int, fields,
+    on_success, show_error, show_info,
+):
     try:
-        payload = _build_payload(fields)
+        payload = _build_payload(fields, registry_id)
     except ValueError as err:
         show_error(str(err))
         return
@@ -383,10 +532,11 @@ async def _save_new(page, api: PillarsApi, fields, on_success, show_error, show_
 
 
 async def _save_edit(
-    page, api: PillarsApi, pillar: Pillar, fields, on_success, show_error, show_info
+    page, api: PillarsApi, pillar: Pillar, fields,
+    on_success, show_error, show_info,
 ):
     try:
-        payload = _build_payload(fields)
+        payload = _build_payload(fields, pillar.registry_id)
     except ValueError as err:
         show_error(str(err))
         return
@@ -406,12 +556,16 @@ async def _save_edit(
 # ДИАЛОГИ
 # ============================================================
 
-def open_add_dialog(page, api: PillarsApi, on_success, show_error, show_info):
+def open_add_dialog(
+    page, api: PillarsApi, registry_id: int,
+    on_success, show_error, show_info,
+):
     fields = _build_fields(None, page)
 
     def save(e=None):
         page.run_task(
-            _save_new, page, api, fields, on_success, show_error, show_info
+            _save_new, page, api, registry_id, fields,
+            on_success, show_error, show_info,
         )
 
     dialog = ft.AlertDialog(
@@ -430,13 +584,15 @@ def open_add_dialog(page, api: PillarsApi, on_success, show_error, show_info):
 
 
 def open_edit_dialog(
-    page, api: PillarsApi, pillar: Pillar, on_success, show_error, show_info
+    page, api: PillarsApi, pillar: Pillar,
+    on_success, show_error, show_info,
 ):
     fields = _build_fields(pillar, page)
 
     def save(e=None):
         page.run_task(
-            _save_edit, page, api, pillar, fields, on_success, show_error, show_info
+            _save_edit, page, api, pillar, fields,
+            on_success, show_error, show_info,
         )
 
     dialog = ft.AlertDialog(

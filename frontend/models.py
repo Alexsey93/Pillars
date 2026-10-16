@@ -1,15 +1,43 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
 
 @dataclass
-class Pillar:
+class Registry:
     id: int
     region: str
+    street: str
     raion: Optional[str] = None
     city: Optional[str] = None
-    address: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "Registry":
+        return cls(
+            id=data["id"],
+            region=data["region"],
+            street=data["street"],
+            raion=data.get("raion"),
+            city=data.get("city"),
+            created_at=data.get("created_at"),
+            updated_at=data.get("updated_at"),
+        )
+
+    def display_name(self) -> str:
+        parts = [self.region]
+        if self.city:
+            parts.append(self.city)
+        parts.append(self.street)
+        return " · ".join(parts)
+
+
+@dataclass
+class Pillar:
+    id: int
+    registry_id: int
+    house_number: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     owner: Optional[str] = None
@@ -36,10 +64,8 @@ class Pillar:
     def from_dict(cls, data: dict) -> "Pillar":
         return cls(
             id=data["id"],
-            region=data["region"],
-            raion=data.get("raion"),
-            city=data.get("city"),
-            address=data.get("address"),
+            registry_id=data["registry_id"],
+            house_number=data.get("house_number"),
             latitude=data.get("latitude"),
             longitude=data.get("longitude"),
             owner=data.get("owner"),
