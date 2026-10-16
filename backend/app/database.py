@@ -1,25 +1,37 @@
 from typing import Annotated, AsyncGenerator
 
 from fastapi import Depends
+from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 from sqlmodel import SQLModel
+from sqlmodel.ext.asyncio.session import AsyncSession as SQLModelAsyncSession
+
+from app.config import settings
 
 
-DATABASE_URL = "sqlite+aiosqlite:///./items.db"
+# Создаем общий Base для SQLAlchemy
+class Base(DeclarativeBase):
+    pass
+
+
+# Связываем SQLModel с SQLAlchemy
+SQLModel.metadata = Base.metadata
+SQLModel._sa_registry = Base.registry
+
 
 engine = create_async_engine(
-    DATABASE_URL,
-    echo=True,
+    settings.database_url,
+    echo=settings.db_echo,
     future=True,
 )
 
 async_session = async_sessionmaker(
     engine,
-    class_=AsyncSession,
+    class_=SQLModelAsyncSession,
     expire_on_commit=False,
 )
 
@@ -30,8 +42,3 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
-
-
-async def create_db_and_tables():
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)

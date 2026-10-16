@@ -1,14 +1,19 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import select
 
 from app.database import SessionDep
 from app.models import Registry
 from app.schemas import RegistryCreate, RegistryRead, RegistryUpdate
+from app.users import current_active_user
 
 
-router = APIRouter(prefix="/registries", tags=["registries"])
+router = APIRouter(
+    prefix="/registries",
+    tags=["registries"],
+    dependencies=[Depends(current_active_user)],
+)
 
 
 @router.post("/", response_model=RegistryRead, status_code=status.HTTP_201_CREATED)
@@ -21,7 +26,7 @@ async def create_registry(data: RegistryCreate, session: SessionDep):
 
 
 @router.get("/", response_model=list[RegistryRead])
-async def list_registries(session: SessionDep, skip: int = 0, limit: int = 50):
+async def list_registries(session: SessionDep, skip: int = 0, limit: int = 100):
     statement = select(Registry).offset(skip).limit(limit)
     result = await session.execute(statement)
     return result.scalars().all()

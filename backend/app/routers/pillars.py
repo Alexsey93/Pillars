@@ -1,14 +1,19 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import select
 
 from app.database import SessionDep
 from app.models import Pillar, Registry
 from app.schemas import PillarCreate, PillarRead, PillarUpdate
+from app.users import current_active_user
 
 
-router = APIRouter(prefix="/pillars", tags=["pillars"])
+router = APIRouter(
+    prefix="/pillars",
+    tags=["pillars"],
+    dependencies=[Depends(current_active_user)],
+)
 
 
 async def _validate_registry(session: SessionDep, registry_id: int):
@@ -36,7 +41,7 @@ async def list_pillars(
     session: SessionDep,
     registry_id: int | None = None,
     skip: int = 0,
-    limit: int = 50,
+    limit: int = 100,
 ):
     statement = select(Pillar)
     if registry_id is not None:

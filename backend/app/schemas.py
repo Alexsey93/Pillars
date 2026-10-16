@@ -39,6 +39,7 @@ class RegistryRead(RegistryBase):
 
 class PillarBase(SQLModel):
     registry_id: int
+    house_number: str | None = Field(default=None, max_length=50)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     owner: str | None = Field(default=None, max_length=300)
@@ -67,6 +68,7 @@ class PillarCreate(PillarBase):
 
 class PillarUpdate(SQLModel):
     registry_id: int | None = None
+    house_number: str | None = Field(default=None, max_length=50)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     owner: str | None = Field(default=None, max_length=300)

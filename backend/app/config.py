@@ -8,9 +8,12 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    database_url: str = "sqlite+aiosqlite:///./items.db"
-    db_echo: bool = True
-    app_title: str = "Items CRUD (Async, Modular)"
+    database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/pillars_db"
+    db_echo: bool = False
+    app_title: str = "Pillars API"
+
+    jwt_secret: str = "change-me"
+    jwt_expire_minutes: int = 60
 
 
 settings = Settings()

@@ -1,9 +1,16 @@
 from datetime import datetime, timezone
 from enum import Enum
+
 from sqlmodel import SQLModel, Field, Relationship
+from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 
 from app.regions import Region
+from app.database import Base
 
+
+# ============================================================
+# ENUM'Ы
+# ============================================================
 
 class Material(str, Enum):
     REINFORCED_CONCRETE = "Железобетон"
@@ -23,6 +30,16 @@ class ClassVoltage(str, Enum):
     OTHER = "Другое"
 
 
+# ============================================================
+# МОДЕЛИ
+# ============================================================
+
+class User(SQLAlchemyBaseUserTableUUID, Base):
+    """Модель пользователя для FastAPI Users (SQLAlchemy)."""
+    __tablename__ = "user"
+    pass
+
+
 class Registry(SQLModel, table=True):
     """Реестр опор по одной улице."""
     id: int | None = Field(default=None, primary_key=True)
@@ -39,10 +56,15 @@ class Registry(SQLModel, table=True):
 
 
 class Pillar(SQLModel, table=True):
+    """Опора ЛЭП с кабелями Ростелеком."""
     id: int | None = Field(default=None, primary_key=True)
 
+    # Привязка к реестру
     registry_id: int = Field(foreign_key="registry.id", index=True)
     registry_obj: Registry | None = Relationship(back_populates="pillars")
+
+    # Адрес
+    house_number: str | None = Field(default=None, max_length=50)
 
     # Координаты
     latitude: float | None = Field(default=None, ge=-90, le=90)
