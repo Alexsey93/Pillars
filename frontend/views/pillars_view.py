@@ -13,11 +13,16 @@ class PillarsView:
         self.registry = registry
         self.on_back = on_back
         self.loading = ft.ProgressRing(visible=False)
+        self.pillars = []
         self.list_column = ft.Column(
             spacing=6,
             scroll=ft.ScrollMode.AUTO,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
+        
+        # Сервис для открытия ссылок (Flet 1.0)
+        self.url_launcher = ft.UrlLauncher()
+        self.page.services.append(self.url_launcher)
 
     def show_error(self, message: str):
         snack = ft.SnackBar(content=ft.Text(message), bgcolor=ft.Colors.RED_400)
@@ -32,6 +37,7 @@ class PillarsView:
         self.page.update()
         try:
             pillars = await self.api.list_pillars(registry_id=self.registry.id)
+            self.pillars = pillars
             self._render(pillars)
         except ApiError as err:
             self.show_error(f"Ошибка загрузки: {err}")
@@ -153,6 +159,23 @@ class PillarsView:
         except Exception as err:
             self.show_error(f"Сеть недоступна: {err}")
 
+    # --- ЭКСПОРТ В EXCEL ---
+
+    async def _export_excel(self, e=None):
+        if not self.pillars:
+            self.show_error("Нет данных для выгрузки")
+            return
+
+        try:
+            relative_url = await self.api.get_download_link(self.registry.id)
+            full_url = f"{self.api.base_url}{relative_url}"
+            # Используем UrlLauncher вместо launch_url
+            await self.url_launcher.launch_url(full_url)
+        except ApiError as err:
+            self.show_error(f"Ошибка получения ссылки: {err}")
+        except Exception as err:
+            self.show_error(f"Ошибка: {err}")
+
     def build(self) -> ft.Control:
         button_style = ft.ButtonStyle(
             padding=ft.Padding(left=14, top=0, right=14, bottom=0),
@@ -210,6 +233,13 @@ class PillarsView:
                                 content="Добавить опору",
                                 icon=ft.Icons.ADD,
                                 on_click=self._add_pillar,
+                                height=36,
+                                style=button_style,
+                            ),
+                            ft.OutlinedButton(
+                                content="Экспорт в Excel",
+                                icon=ft.Icons.DOWNLOAD,
+                                on_click=lambda e: self.page.run_task(self._export_excel),
                                 height=36,
                                 style=button_style,
                             ),

@@ -95,3 +95,11 @@ class PillarRead(PillarBase):
     id: int
     created_at: datetime
     updated_at: datetime | None = None
+
+
+# ============================================================
+# DOWNLOAD TOKEN
+# ============================================================
+
+class DownloadLinkResponse(SQLModel):
+    url: str

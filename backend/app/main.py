@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from app.config import settings
 from app.database import engine
 from app.models import Pillar, Registry, User  # noqa: F401
-from app.routers import pillars, registries
+from app.routers import export, pillars, registries
 from app.schemas_user import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, fastapi_users
 
@@ -18,28 +18,33 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_title, lifespan=lifespan)
 
-# Логин / логаут
+# ============================================================
+# ROUTERS
+# ============================================================
+
+# Авторизация (логин / логаут)
 app.include_router(
     fastapi_users.get_auth_router(auth_backend),
     prefix="/auth/jwt",
     tags=["auth"],
 )
 
-# Регистрация с инвайт-кодом
+# Регистрация (с инвайт-кодом)
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/auth",
     tags=["auth"],
 )
 
-# Управление пользователями:
-# - обычный пользователь: только свой профиль (GET/PATCH /users/me)
-# - администратор: список всех, редактирование/удаление любого
+# Управление пользователями
 app.include_router(
     fastapi_users.get_users_router(UserRead, UserUpdate),
     prefix="/users",
     tags=["users"],
 )
+
+# Экспорт в Excel
+app.include_router(export.router)
 
 # Ваши роутеры (полный CRUD для всех авторизованных)
 app.include_router(registries.router)

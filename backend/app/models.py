@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 from enum import Enum
+import uuid
 
 from sqlmodel import SQLModel, Field, Relationship
+from sqlalchemy import Column, Enum as SAEnum
 from fastapi_users_db_sqlalchemy import SQLAlchemyBaseUserTableUUID
 
 from app.regions import Region
@@ -27,14 +29,27 @@ class ClassVoltage(str, Enum):
 
 
 class User(SQLAlchemyBaseUserTableUUID, Base):
-    """Модель пользователя. Поле email хранит username."""
+    """Пользователь. Поле email хранит username."""
     __tablename__ = "user"
     pass
 
 
 class Registry(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
-    region: Region = Field(index=True)
+
+    # native_enum=False — храним как VARCHAR, чтобы обойти лимит в 63 байта
+    region: Region = Field(
+        sa_column=Column(
+            SAEnum(
+                Region,
+                native_enum=False,
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=False,
+            index=True,
+        )
+    )
+
     raion: str | None = Field(default=None, index=True)
     city: str | None = Field(default=None, index=True)
     street: str = Field(index=True)
@@ -47,14 +62,37 @@ class Pillar(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     registry_id: int = Field(foreign_key="registry.id", index=True)
     registry_obj: Registry | None = Relationship(back_populates="pillars")
+
     house_number: str | None = Field(default=None, max_length=50)
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     owner: str | None = Field(default=None)
     number_owner_pilar: str | None = Field(default=None)
-    material: Material | None = Field(default=None)
+
+    material: Material | None = Field(
+        default=None,
+        sa_column=Column(
+            SAEnum(
+                Material,
+                native_enum=False,
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=True,
+        ),
+    )
     height: float | None = Field(default=None, ge=0, le=200)
-    class_voltage: ClassVoltage | None = Field(default=None)
+    class_voltage: ClassVoltage | None = Field(
+        default=None,
+        sa_column=Column(
+            SAEnum(
+                ClassVoltage,
+                native_enum=False,
+                values_callable=lambda x: [e.value for e in x],
+            ),
+            nullable=True,
+        ),
+    )
+
     cnt_fastening: int = Field(default=0, ge=0)
     cnt_vok_not_ab: int = Field(default=0, ge=0)
     cnt_mzhk_not_ab: int = Field(default=0, ge=0)
@@ -69,3 +107,13 @@ class Pillar(SQLModel, table=True):
     cnt_out_on_earth: int = Field(default=0, ge=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime | None = Field(default=None)
+
+
+class DownloadToken(SQLModel, table=True):
+    """Одноразовый токен для скачивания файла."""
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    token: str = Field(index=True, unique=True)
+    registry_id: int = Field(foreign_key="registry.id")
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    expires_at: datetime
+    used: bool = Field(default=False)

@@ -7,6 +7,7 @@ dependencies = [
     "requests",
     "flet-geolocator",
     "flet-map = >=0.2.0",
+    "openpyxl = *",
 ]
 
 [tool.flet.app]
