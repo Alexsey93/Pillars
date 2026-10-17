@@ -37,6 +37,9 @@ class User(SQLAlchemyBaseUserTableUUID, Base):
 class Registry(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
 
+    # Владелец реестра
+    owner_id: uuid.UUID = Field(foreign_key="user.id", index=True)
+
     # native_enum=False — храним как VARCHAR, чтобы обойти лимит в 63 байта
     region: Region = Field(
         sa_column=Column(

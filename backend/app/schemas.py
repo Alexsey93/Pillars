@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 from sqlmodel import SQLModel, Field
 
 from app.models import Material, ClassVoltage
@@ -29,6 +30,7 @@ class RegistryUpdate(SQLModel):
 
 class RegistryRead(RegistryBase):
     id: int
+    owner_id: uuid.UUID
     created_at: datetime
     updated_at: datetime | None = None
 
