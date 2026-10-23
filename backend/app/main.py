@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from app.config import settings
 from app.database import engine
 from app.models import Pillar, Registry, User  # noqa: F401
-from app.routers import export, pillars, registries
+from app.routers import export, pillars, registries, photos
 from app.schemas_user import UserCreate, UserRead, UserUpdate
 from app.users import auth_backend, fastapi_users
 
@@ -49,6 +49,7 @@ app.include_router(export.router)
 # Ваши роутеры (полный CRUD для всех авторизованных)
 app.include_router(registries.router)
 app.include_router(pillars.router)
+app.include_router(photos.router)
 
 
 @app.get("/health", tags=["health"])

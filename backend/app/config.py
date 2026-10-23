@@ -12,10 +12,13 @@ class Settings(BaseSettings):
     db_echo: bool = False
     app_title: str = "Pillars API"
 
+    # Аутентификация
     jwt_secret: str = "change-me"
     jwt_expire_minutes: int = 60
+    invite_code: str = "change-me-invite-code"
 
-    invite_code: str = "Инвентаризация"   # ← новый параметр
+    # Загрузка файлов
+    upload_dir: str = "uploads"
 
 
 settings = Settings()
