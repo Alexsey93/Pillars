@@ -37,6 +37,7 @@ class Registry:
 class Pillar:
     id: int
     registry_id: int
+    number_in_registry: Optional[int] = None # <-- НОВОЕ ПОЛЕ
     house_number: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -57,6 +58,7 @@ class Pillar:
     cnt_ork: int = 0
     cnt_rk: int = 0
     cnt_out_on_earth: int = 0
+    photo_url: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -65,6 +67,7 @@ class Pillar:
         return cls(
             id=data["id"],
             registry_id=data["registry_id"],
+            number_in_registry=data.get("number_in_registry"), # <-- Читаем из API
             house_number=data.get("house_number"),
             latitude=data.get("latitude"),
             longitude=data.get("longitude"),
@@ -85,6 +88,7 @@ class Pillar:
             cnt_ork=data.get("cnt_ork", 0),
             cnt_rk=data.get("cnt_rk", 0),
             cnt_out_on_earth=data.get("cnt_out_on_earth", 0),
+            photo_url=data.get("photo_url"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )

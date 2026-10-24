@@ -5,6 +5,8 @@ FALLBACK_LAT = 61.524
 FALLBACK_LON = 105.318
 FALLBACK_ZOOM = 4
 DEFAULT_ZOOM = 16
+MAX_MAP_ZOOM = 18          # Максимальный зум, который может включить пользователь
+MAX_NATIVE_ZOOM = 18       # Максимальный зум для реальных тайлов (подбирается эмпирически)
 
 MAP_PADDING = ft.Padding(left=16, top=0, right=16, bottom=0)
 
@@ -53,15 +55,25 @@ def open_map_picker(
         expand=True,
         initial_center=ftm.MapLatitudeLongitude(start_lat, start_lon),
         initial_zoom=start_zoom,
+        max_zoom=MAX_MAP_ZOOM,
         interaction_configuration=ftm.InteractionConfiguration(
             flags=ftm.InteractionFlag.ALL
         ),
         on_tap=handle_tap,
         layers=[
+            # 1. Спутник ArcGIS
             ftm.TileLayer(
-                url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                url_template="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 user_agent_package_name="Pillars/1.0",
+                max_native_zoom=MAX_NATIVE_ZOOM,
             ),
+            # 2. Прозрачный слой подписей ArcGIS
+            ftm.TileLayer(
+                url_template="https://services.arcgisonline.com/arcgis/rest/services/Reference/World_Reference_Overlay/MapServer/tile/{z}/{y}/{x}",
+                user_agent_package_name="Pillars/1.0",
+                max_native_zoom=10,
+            ),
+            # 3. Маркер
             ftm.MarkerLayer(
                 ref=marker_layer_ref,
                 markers=[build_marker(start_lat, start_lon)] if has_coords else [],

@@ -5,6 +5,7 @@ from models import Pillar, Registry
 
 
 class ApiError(Exception):
+    """Ошибка при обращении к API."""
     pass
 
 
@@ -15,6 +16,7 @@ class PillarsApi:
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
+        """Возвращает единый AsyncClient, создаёт при необходимости."""
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
@@ -23,11 +25,13 @@ class PillarsApi:
         return self._client
 
     async def reset_client(self):
+        """Сбрасывает HTTP-клиент после логина/логаута."""
         if self._client and not self._client.is_closed:
             await self._client.aclose()
         self._client = None
 
     def _handle(self, response: httpx.Response):
+        """Разбирает ответ. Бросает ApiError при ошибке."""
         if response.status_code == 204:
             return None
         if not response.is_success:
@@ -38,7 +42,9 @@ class PillarsApi:
             raise ApiError(f"HTTP {response.status_code}: {detail}")
         return response.json()
 
+    # ========================================================
     # REGISTRIES
+    # ========================================================
 
     async def list_registries(self, skip: int = 0, limit: int = 100) -> list[Registry]:
         client = await self._get_client()
@@ -70,7 +76,9 @@ class PillarsApi:
         r = await client.delete(f"{self.base_url}/registries/{registry_id}")
         self._handle(r)
 
+    # ========================================================
     # PILLARS
+    # ========================================================
 
     async def list_pillars(
         self, registry_id: int | None = None, skip: int = 0, limit: int = 100
@@ -104,10 +112,28 @@ class PillarsApi:
         r = await client.delete(f"{self.base_url}/pillars/{pillar_id}")
         self._handle(r)
 
+    # ========================================================
+    # PHOTOS
+    # ========================================================
+
+    async def upload_pillar_photo(
+        self, pillar_id: int, photo_bytes: bytes, filename: str
+    ) -> str:
+        """Загружает фото для опоры и возвращает относительный URL."""
+        client = await self._get_client()
+        files = {"file": (filename, photo_bytes, "image/jpeg")}
+        r = await client.post(
+            f"{self.base_url}/pillars/{pillar_id}/photo", files=files
+        )
+        data = self._handle(r)
+        return data.get("url", "")
+
+    # ========================================================
     # EXPORT
+    # ========================================================
 
     async def get_download_link(self, registry_id: int) -> str:
-        """Запрашивает у бэкенда одноразовую ссылку для скачивания."""
+        """Запрашивает у бэкенда одноразовую ссылку для скачивания Excel."""
         client = await self._get_client()
         r = await client.post(f"{self.base_url}/export/registry/{registry_id}/link")
         data = self._handle(r)

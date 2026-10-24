@@ -1,6 +1,7 @@
 import flet as ft
 
 from api import PillarsApi, ApiError
+from auth import auth_state
 from dialogs.confirm import open_confirm_dialog
 from dialogs.item_form import open_add_dialog, open_edit_dialog
 from models import Pillar, Registry
@@ -19,8 +20,7 @@ class PillarsView:
             scroll=ft.ScrollMode.AUTO,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         )
-        
-        # Сервис для открытия ссылок (Flet 1.0)
+
         self.url_launcher = ft.UrlLauncher()
         self.page.services.append(self.url_launcher)
 
@@ -77,22 +77,35 @@ class PillarsView:
             subtitle_parts.append(f"подвесов: {pillar.cnt_fastening}")
         if pillar.cnt_o_coup:
             subtitle_parts.append(f"опт. муфт: {pillar.cnt_o_coup}")
+            
         if pillar.latitude is not None and pillar.longitude is not None:
-            subtitle_parts.append(f"{pillar.latitude:.5f}, {pillar.longitude:.5f}")
+            try:
+                lat = float(pillar.latitude)
+                lon = float(pillar.longitude)
+                subtitle_parts.append(f"{lat:.6f}, {lon:.6f}")
+            except (ValueError, TypeError):
+                subtitle_parts.append(f"{pillar.latitude}, {pillar.longitude}")
 
-        title = f"Опора #{pillar.id}"
+        # Используем number_in_registry для отображения, иначе - глобальный id
+        display_number = pillar.number_in_registry or pillar.id
+        title = f"Опора #{display_number}"
+        
         if pillar.house_number:
             title += f" · д. {pillar.house_number}"
+
+        leading_icon = ft.Icons.ELECTRIC_BOLT
+        if pillar.photo_url:
+            leading_icon = ft.Icons.PHOTO_CAMERA
 
         return ft.Container(
             padding=ft.Padding(left=12, top=8, right=4, bottom=8),
             border=ft.Border.all(1, ft.Colors.GREY_300),
             border_radius=ft.BorderRadius.all(6),
             width=560,
-            on_click=lambda e: self._edit_pillar(pillar),
+            on_click=lambda e: self._edit_pillar(pillar), # Передаем весь объект (там есть id)
             content=ft.Row(
                 controls=[
-                    ft.Icon(ft.Icons.ELECTRIC_BOLT, size=20),
+                    ft.Icon(leading_icon, size=20),
                     ft.Column(
                         controls=[
                             ft.Text(title, size=14, weight=ft.FontWeight.BOLD),
@@ -123,7 +136,7 @@ class PillarsView:
 
     def _add_pillar(self, e=None):
         open_add_dialog(
-            self.page, self.api, self.registry.id,
+            self.page, self.api, self.registry.id, self.registry.street,
             on_success=lambda: self.page.run_task(self.load_pillars),
             show_error=self.show_error,
             show_info=self.show_info,
@@ -131,7 +144,7 @@ class PillarsView:
 
     def _edit_pillar(self, pillar: Pillar):
         open_edit_dialog(
-            self.page, self.api, pillar,
+            self.page, self.api, pillar, self.registry.street,
             on_success=lambda: self.page.run_task(self.load_pillars),
             show_error=self.show_error,
             show_info=self.show_info,
@@ -144,15 +157,15 @@ class PillarsView:
         open_confirm_dialog(
             self.page,
             title="Удалить опору?",
-            message=f"Опора #{pillar.id} будет удалена.",
+            message=f"Опора #{pillar.number_in_registry or pillar.id} будет удалена.",
             on_confirm=do_delete,
         )
 
     async def _do_delete(self, pillar: Pillar):
         try:
-            await self.api.delete_pillar(pillar.id)
+            await self.api.delete_pillar(pillar.id) # <-- Используем глобальный ID
             self.page.pop_dialog()
-            self.show_info(f"Удалено: опора #{pillar.id}")
+            self.show_info(f"Удалено: опора #{pillar.number_in_registry or pillar.id}")
             await self.load_pillars()
         except ApiError as err:
             self.show_error(f"Ошибка: {err}")
@@ -169,7 +182,6 @@ class PillarsView:
         try:
             relative_url = await self.api.get_download_link(self.registry.id)
             full_url = f"{self.api.base_url}{relative_url}"
-            # Используем UrlLauncher вместо launch_url
             await self.url_launcher.launch_url(full_url)
         except ApiError as err:
             self.show_error(f"Ошибка получения ссылки: {err}")
