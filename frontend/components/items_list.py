@@ -8,7 +8,7 @@ class PillarsList(ft.Column):
         super().__init__(
             spacing=6,
             scroll=ft.ScrollMode.AUTO,
-            expand=True,
+            expand=True,  # Занимает всё доступное пространство для работы скролла
         )
         self.on_edit = on_edit
         self.on_delete = on_delete

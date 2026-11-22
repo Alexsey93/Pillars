@@ -37,7 +37,6 @@ class Registry:
 class Pillar:
     id: int
     registry_id: int
-    number_in_registry: Optional[int] = None # <-- НОВОЕ ПОЛЕ
     house_number: Optional[str] = None
     latitude: Optional[float] = None
     longitude: Optional[float] = None
@@ -46,19 +45,19 @@ class Pillar:
     material: Optional[str] = None
     height: Optional[float] = None
     class_voltage: Optional[str] = None
-    cnt_fastening: int = 0
-    cnt_vok_not_ab: int = 0
-    cnt_mzhk_not_ab: int = 0
-    cnt_ab_vok_mzhk: int = 0
-    cnt_o_coup: int = 0
-    cnt_vols_upmk: int = 0
-    cnt_m_coup: int = 0
-    cnt_mzhk_upmk: int = 0
-    cnt_shk: int = 0
-    cnt_ork: int = 0
-    cnt_rk: int = 0
-    cnt_out_on_earth: int = 0
-    photo_url: Optional[str] = None
+    cnt_fastening: str = "0"
+    cnt_vok_not_ab: str = "0"
+    cnt_mzhk_not_ab: str = "0"
+    cnt_ab_vok_mzhk: str = "0"
+    cnt_o_coup: str = "0"
+    cnt_vols_upmk: str = "0"
+    cnt_m_coup: str = "0"
+    cnt_mzhk_upmk: str = "0"
+    cnt_shk: str = "0"
+    cnt_ork: str = "0"
+    cnt_rk: str = "0"
+    cnt_out_on_earth: str = "0"
+    photo_url: Optional[str] = None          # ← добавлено
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -67,7 +66,6 @@ class Pillar:
         return cls(
             id=data["id"],
             registry_id=data["registry_id"],
-            number_in_registry=data.get("number_in_registry"), # <-- Читаем из API
             house_number=data.get("house_number"),
             latitude=data.get("latitude"),
             longitude=data.get("longitude"),
@@ -76,19 +74,19 @@ class Pillar:
             material=data.get("material"),
             height=data.get("height"),
             class_voltage=data.get("class_voltage"),
-            cnt_fastening=data.get("cnt_fastening", 0),
-            cnt_vok_not_ab=data.get("cnt_vok_not_ab", 0),
-            cnt_mzhk_not_ab=data.get("cnt_mzhk_not_ab", 0),
-            cnt_ab_vok_mzhk=data.get("cnt_ab_vok_mzhk", 0),
-            cnt_o_coup=data.get("cnt_o_coup", 0),
-            cnt_vols_upmk=data.get("cnt_vols_upmk", 0),
-            cnt_m_coup=data.get("cnt_m_coup", 0),
-            cnt_mzhk_upmk=data.get("cnt_mzhk_upmk", 0),
-            cnt_shk=data.get("cnt_shk", 0),
-            cnt_ork=data.get("cnt_ork", 0),
-            cnt_rk=data.get("cnt_rk", 0),
-            cnt_out_on_earth=data.get("cnt_out_on_earth", 0),
-            photo_url=data.get("photo_url"),
+            cnt_fastening=str(data.get("cnt_fastening") or "0"),
+            cnt_vok_not_ab=str(data.get("cnt_vok_not_ab") or "0"),
+            cnt_mzhk_not_ab=str(data.get("cnt_mzhk_not_ab") or "0"),
+            cnt_ab_vok_mzhk=str(data.get("cnt_ab_vok_mzhk") or "0"),
+            cnt_o_coup=str(data.get("cnt_o_coup") or "0"),
+            cnt_vols_upmk=str(data.get("cnt_vols_upmk") or "0"),
+            cnt_m_coup=str(data.get("cnt_m_coup") or "0"),
+            cnt_mzhk_upmk=str(data.get("cnt_mzhk_upmk") or "0"),
+            cnt_shk=str(data.get("cnt_shk") or "0"),
+            cnt_ork=str(data.get("cnt_ork") or "0"),
+            cnt_rk=str(data.get("cnt_rk") or "0"),
+            cnt_out_on_earth=str(data.get("cnt_out_on_earth") or "0"),
+            photo_url=data.get("photo_url"),       # ← добавлено
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at"),
         )

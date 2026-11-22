@@ -6,11 +6,12 @@ dependencies = [
     "flet",
     "requests",
     "flet-geolocator",
-    "flet-map>=0.2.0",
+    "flet-map",
     "openpyxl",
     "flet-camera",
     "flet-permission-handler",
     "httpx",
+    "certifi",
 ]
 
 [tool.flet.app]
@@ -32,7 +33,7 @@ flet-map = "*"
 flet = "*"
 
 [tool.flet.android]
-extract_packages = ["flet_camera", "flet_permission_handler"]
+extract_packages = ["flet_camera", "flet_permission_handler", "certifi"]
 
 [tool.flet.android.permission]
 "android.permission.INTERNET" = true

@@ -11,13 +11,12 @@ from views.registries_view import RegistriesView
 
 def main(page: ft.Page):
     page.title = "Pillars — опоры"
-    page.padding = 16
-    page.spacing = 12
+    page.padding = 0 # Отступы задаются внутри самих View
+    page.spacing = 0
 
     api = PillarsApi(API_BASE_URL)
 
     def do_logout():
-        """Логаут: очищает токен и возвращает на экран входа."""
         token = auth_state.token
         auth_state.clear()
         if token:
@@ -27,40 +26,24 @@ def main(page: ft.Page):
 
     def show_login():
         view = LoginView(page, api, on_success=show_registries)
-        page.views.clear()
-        page.views.append(
-            ft.View(route="/login", controls=[view.build()], padding=0)
-        )
+        page.views.clear() # Полная замена стека
+        page.views.append(ft.View(route="/login", controls=[view.build()], padding=0))
         page.update()
 
     def show_registries(e=None):
-        view = RegistriesView(
-            page=page, api=api,
-            on_open_registry=open_registry,
-            on_logout=do_logout,
-        )
-        page.views.clear()
-        page.views.append(
-            ft.View(
-                route="/",
-                controls=[view.build()],
-                padding=ft.Padding(left=16, top=16, right=16, bottom=16),
-            )
-        )
+        view = RegistriesView(page=page, api=api, on_open_registry=open_registry, on_logout=do_logout)
+        page.views.clear() # Полная замена стека
+        page.views.append(ft.View(route="/", controls=[view.build()], padding=0))
         page.update()
         page.run_task(view.load_registries)
 
     def open_registry(registry: Registry):
-        view = PillarsView(
-            page=page, api=api, registry=registry, on_back=go_back,
-        )
-        page.views.append(
-            ft.View(
-                route=f"/registry/{registry.id}",
-                controls=[view.build()],
-                padding=ft.Padding(left=16, top=16, right=16, bottom=16),
-            )
-        )
+        # Защита от двойного клика
+        if page.views and page.views[-1].route == f"/registry/{registry.id}":
+            return
+
+        view = PillarsView(page=page, api=api, registry=registry, on_back=go_back)
+        page.views.append(ft.View(route=f"/registry/{registry.id}", controls=[view.build()], padding=0))
         page.update()
         page.run_task(view.load_pillars)
 

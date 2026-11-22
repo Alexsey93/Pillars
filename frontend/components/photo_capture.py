@@ -71,9 +71,9 @@ class PhotoCaptureDialog:
 
         # 5. ПОЛНОЭКРАННЫЙ диалог
         dialog = ft.AlertDialog(
-            inset_padding=0,          # Убираем внешние отступы
-            content_padding=0,        # Убираем внутренние отступы
-            shape=ft.RoundedRectangleBorder(radius=0), # Убираем скругления
+            inset_padding=0,
+            content_padding=0,
+            shape=ft.RoundedRectangleBorder(radius=0),
             bgcolor=ft.Colors.BLACK,
             content=ft.Stack(
                 controls=[
@@ -83,12 +83,12 @@ class PhotoCaptureDialog:
                 ],
                 expand=True,
             ),
-            actions=[],               # Убираем стандартную панель действий
+            actions=[],
             actions_padding=0,
         )
         
         self.page.show_dialog(dialog)
-        self.page.update() # Обновляем страницу
+        self.page.update()
 
         # 6. ИНИЦИАЛИЗИРУЕМ КАМЕРУ ТОЛЬКО ПОСЛЕ ТОГО, КАК ОНА НА ЭКРАНЕ
         try:
