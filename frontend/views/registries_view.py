@@ -5,6 +5,7 @@ from auth import auth_state
 from dialogs.confirm import open_confirm_dialog
 from dialogs.registry_form import open_registry_add_dialog, open_registry_edit_dialog
 from models import Registry
+from updater import check_for_updates_direct
 
 
 class RegistriesView:
@@ -89,6 +90,18 @@ class RegistriesView:
     def _add_registry(self, e=None):
         open_registry_add_dialog(self.page, self.api, on_success=lambda: self.page.run_task(self.load_registries), show_error=self.show_error, show_info=self.show_info)
 
+    async def _check_updates(self, e=None):
+        """Ручная проверка обновлений по нажатию кнопки."""
+        try:
+            result = await check_for_updates_direct(self.page)
+            if result == 'uptodate':
+                self.show_info("У вас уже установлена последняя версия.")
+            elif result == 'error':
+                self.show_info("Не удалось проверить обновления (сеть или релиз недоступен).")
+            # 'updated' — диалог уже показан внутри check_for_updates_direct
+        except Exception as err:
+            self.show_error(f"Ошибка проверки обновлений: {err}")
+
     def _edit_registry(self, reg: Registry):
         open_registry_edit_dialog(self.page, self.api, reg, on_success=lambda: self.page.run_task(self.load_registries), show_error=self.show_error, show_info=self.show_info)
 
@@ -120,6 +133,7 @@ class RegistriesView:
                     ft.Row(
                         controls=[
                             ft.Button(content="Обновить", icon=ft.Icons.REFRESH, on_click=lambda e: self.page.run_task(self.load_registries), height=36, style=button_style),
+                            ft.Button(content="Проверить обновления", icon=ft.Icons.UPDATE, on_click=lambda e: self.page.run_task(self._check_updates), height=36, style=button_style),
                             ft.FilledButton(content="Создать реестр", icon=ft.Icons.ADD, on_click=self._add_registry, height=36, style=button_style),
                             ft.IconButton(icon=ft.Icons.LOGOUT, tooltip="Выйти", on_click=lambda e: self.on_logout()),
                         ],

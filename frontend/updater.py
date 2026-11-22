@@ -152,6 +152,55 @@ async def check_for_updates(page: ft.Page):
     page.show_dialog(dialog)
 
 
+async def check_for_updates_direct(page: ft.Page) -> str:
+    """Проверяет обновления в обход throttling (ручная проверка пользователем).
+
+    Возвращает:
+        'updated' — есть новая версия, диалог показали
+        'uptodate' — уже актуально
+        'error' — ошибка сети / нет релизов / нет APK
+    """
+    current = await _current_version(page)
+
+    release = await _fetch_latest_release()
+    if release is None:
+        return 'error'
+
+    tag = (release.get("tag_name") or "").lstrip("v")
+    if not tag:
+        return 'error'
+
+    try:
+        if Version(tag) <= Version(current):
+            return 'uptodate'
+    except InvalidVersion:
+        return 'error'
+
+    apk_url = _find_apk_url(release)
+    if not apk_url:
+        return 'error'
+
+    # Показываем диалог с предложением обновиться
+    async def on_update(e):
+        page.pop_dialog()
+        page.run_task(_download_and_install, page, apk_url)
+
+    dialog = ft.AlertDialog(
+        title=ft.Text("Доступно обновление"),
+        content=ft.Text(
+            f"Текущая версия: {current}\n"
+            f"Новая версия: {tag}\n\n"
+            f"{release.get('body', '')[:500]}"
+        ),
+        actions=[
+            ft.TextButton("Позже", on_click=lambda e: page.pop_dialog()),
+            ft.FilledButton("Обновить", on_click=lambda e: page.run_task(on_update, e)),
+        ],
+    )
+    page.show_dialog(dialog)
+    return 'updated'
+
+
 async def check_for_updates_throttled(page: ft.Page):
     """Проверяет обновления не чаще одного раза в _CHECK_INTERVAL.
 
