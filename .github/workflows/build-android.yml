@@ -59,14 +59,13 @@ jobs:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         run: |
-          flet build apk --release \
+          flet build apk \
             --build-version ${{ github.ref_name }} \
             --build-number ${{ github.run_number }} \
-            -- \
-            --keystore ../upload-keystore.jks \
-            --key-password pillarsecret \
-            --key-alias upload \
-            --store-password pillarsecret
+            --android-signing-key-store ../upload-keystore.jks \
+            --android-signing-key-store-password pillarsecret \
+            --android-signing-key-password pillarsecret \
+            --android-signing-key-alias upload
 
       - name: Locate built APK
         id: locate_apk
