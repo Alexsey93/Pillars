@@ -24,12 +24,14 @@ class RegistriesView:
         )
 
     def show_error(self, message: str):
-        snack = ft.SnackBar(content=ft.Text(message), bgcolor=ft.Colors.RED_400)
-        self.page.show_dialog(snack)
+        print(f"[DEBUG] show_error: {message}")
+        self.page.snack_bar = ft.SnackBar(content=ft.Text(message), bgcolor=ft.Colors.RED_400, open=True)
+        self.page.update()
 
     def show_info(self, message: str):
-        snack = ft.SnackBar(content=ft.Text(message))
-        self.page.show_dialog(snack)
+        print(f"[DEBUG] show_info: {message}")
+        self.page.snack_bar = ft.SnackBar(content=ft.Text(message), open=True)
+        self.page.update()
 
     async def load_registries(self, e=None):
         if self.is_loading: return
