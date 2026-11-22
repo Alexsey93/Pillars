@@ -211,26 +211,40 @@ def _build_fields(pillar: Pillar | None, page: ft.Page):
     location_btn = ft.OutlinedButton(
         content="Моё местоположение",
         icon=ft.Icons.MY_LOCATION,
-        width=170,
         on_click=lambda e: page.run_task(
             _get_current_location,
             page, geo, lat_field, lon_field,
             lambda msg: page.show_dialog(ft.SnackBar(ft.Text(msg))),
             lambda msg: page.show_dialog(ft.SnackBar(ft.Text(msg))),
         ),
+        width=FIELD_WIDTH,
     )
 
     pick_on_map_btn = ft.OutlinedButton(
         content="Выбрать на карте",
         icon=ft.Icons.MAP,
-        width=170,
         on_click=lambda e: page.run_task(
             _open_map_for_pick_async,
             page, geo, lat_field, lon_field,
             lambda msg: page.show_dialog(ft.SnackBar(ft.Text(msg))),
             lambda msg: page.show_dialog(ft.SnackBar(ft.Text(msg))),
         ),
+        width=FIELD_WIDTH,
     )
+    
+    photo_btn = ft.OutlinedButton(
+        content="Сделать фото",
+        icon=ft.Icons.CAMERA_ALT,
+        on_click=lambda e: take_photo(e),
+        width=FIELD_WIDTH,  # было 170
+        )
+    
+    attach_btn = ft.OutlinedButton(
+        content="Прикрепить",
+        icon=ft.Icons.ATTACH_FILE,
+        on_click=lambda e: pick_photo(e),
+        width=FIELD_WIDTH,  # было 170
+        )
 
     owner_field = _text_field(
         "Владеющая организация", pillar.owner if pillar else None
@@ -337,8 +351,7 @@ def _build_fields(pillar: Pillar | None, page: ft.Page):
     def pick_photo(e):
         page.run_task(camera_dialog.pick_file)
 
-    photo_btn = ft.OutlinedButton(content="Сделать фото", icon=ft.Icons.CAMERA_ALT, on_click=take_photo, width=170)
-    attach_btn = ft.OutlinedButton(content="Прикрепить", icon=ft.Icons.ATTACH_FILE, on_click=pick_photo, width=170)
+    
 
     counters_meta = {
         "cnt_fastening": {
@@ -473,23 +486,13 @@ def _build_form(fields: dict) -> ft.Column:
                         fields["house_number_field"],
                         fields["lat_field"],
                         fields["lon_field"],
-                        ft.Row(
-                            controls=[fields["location_btn"], fields["pick_on_map_btn"]],
-                            spacing=8, wrap=True,
-                            alignment=ft.MainAxisAlignment.START,
-                        ),
-                        ft.Row(
-                            controls=[fields["photo_btn"], fields["attach_btn"]],
-                            spacing=10,
-                            vertical_alignment=ft.CrossAxisAlignment.CENTER,
-                        ),
-                        ft.Row(
-                            controls=[fields["photo_preview"]],
-                            alignment=ft.MainAxisAlignment.CENTER,
+                        fields["location_btn"], 
+                        fields["pick_on_map_btn"],
+                        fields["photo_btn"],
+                        fields["attach_btn"],
+                        fields["photo_preview"]],
                         ),
                     ]),
-                ],
-            ),
             ft.ExpansionTile(
                 title=ft.Text("Владелец и учёт", size=14),
                 controls=[section([fields["owner_field"], fields["number_owner_field"]])],

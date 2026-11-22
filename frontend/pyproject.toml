@@ -12,6 +12,7 @@ dependencies = [
     "flet-permission-handler",
     "httpx",
     "certifi",
+    "packaging",
 ]
 
 [tool.flet.app]
@@ -31,6 +32,7 @@ flet-permission-handler = "*"
 flet-camera = "*"
 flet-map = "*"
 flet = "*"
+certifi = "*"
 
 [tool.flet.android]
 extract_packages = ["flet_camera", "flet_permission_handler", "certifi"]
