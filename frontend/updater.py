@@ -158,27 +158,40 @@ async def check_for_updates_direct(page: ft.Page) -> str:
     Возвращает:
         'updated' — есть новая версия, диалог показали
         'uptodate' — уже актуально
-        'error' — ошибка сети / нет релизов / нет APK
+        'error_api' — ошибка GitHub API
+        'error_no_tag' — нет тега в релизе
+        'error_uptodate' — уже актуально (сравнение версий)
+        'error_invalid_version' — некорректный SemVer
+        'error_no_apk' — нет APK-ассета в релизе
     """
+    print("[DEBUG updater] check_for_updates_direct started")
     current = await _current_version(page)
+    print(f"[DEBUG updater] current version: {current}")
 
     release = await _fetch_latest_release()
     if release is None:
-        return 'error'
+        print("[DEBUG updater] _fetch_latest_release returned None")
+        return 'error_api'
 
     tag = (release.get("tag_name") or "").lstrip("v")
+    print(f"[DEBUG updater] tag from release: '{tag}'")
     if not tag:
-        return 'error'
+        print("[DEBUG updater] no tag")
+        return 'error_no_tag'
 
     try:
         if Version(tag) <= Version(current):
+            print(f"[DEBUG updater] {tag} <= {current}, uptodate")
             return 'uptodate'
     except InvalidVersion:
-        return 'error'
+        print("[DEBUG updater] InvalidVersion")
+        return 'error_invalid_version'
 
     apk_url = _find_apk_url(release)
+    print(f"[DEBUG updater] apk_url: {apk_url}")
     if not apk_url:
-        return 'error'
+        print("[DEBUG updater] no apk asset found")
+        return 'error_no_apk'
 
     # Показываем диалог с предложением обновиться
     async def on_update(e):
@@ -198,6 +211,7 @@ async def check_for_updates_direct(page: ft.Page) -> str:
         ],
     )
     page.show_dialog(dialog)
+    print("[DEBUG updater] dialog shown, returning 'updated'")
     return 'updated'
 
 
