@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi.responses import FileResponse
 from sqlmodel import select
@@ -42,6 +43,7 @@ async def upload_pillar_photo(
 
     file_url = f"/pillars/photo/{unique_filename}"
     pillar.photo_url = file_url
+    pillar.updated_at = datetime.now(timezone.utc)
     session.add(pillar)
     await session.commit()
 

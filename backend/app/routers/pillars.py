@@ -25,13 +25,16 @@ async def create_pillar(
     await session.commit()
     await session.refresh(db_pillar)
 
-    # Вычисляем номер для ответа
-    stmt = select(func.count(Pillar.id)).where(Pillar.registry_id == data.registry_id)
+    # Номер внутри реестра — количество опор с id <= нового
+    stmt = select(func.count(Pillar.id)).where(
+        Pillar.registry_id == db_pillar.registry_id,
+        Pillar.id <= db_pillar.id,
+    )
     result = await session.execute(stmt)
-    count = result.scalar_one()
+    calc_number = result.scalar_one()
 
     pydantic_pillar = PillarRead.model_validate(db_pillar)
-    pydantic_pillar.number_in_registry = count
+    pydantic_pillar.number_in_registry = calc_number
     return pydantic_pillar
 
 
