@@ -94,6 +94,8 @@ class RegistriesView:
         """Ручная проверка обновлений по нажатию кнопки."""
         try:
             result = await check_for_updates_direct(self.page)
+            # ВРЕМЕННАЯ ДИАГНОСТИКА: показываем точный результат проверки
+            self.show_info(f"Результат проверки: {result}")
             if result == 'uptodate':
                 self.show_info("У вас уже установлена последняя версия.")
             elif result == 'error':
