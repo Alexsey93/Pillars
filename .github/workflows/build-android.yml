@@ -29,7 +29,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.0'
+          flutter-version: '3.47.9'
           channel: 'stable'
 
       - name: Set up Python
@@ -59,7 +59,7 @@ jobs:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         run: |
-          flet build apk \
+          flet build apk --yes --log-format github \
             --build-version ${{ github.ref_name }} \
             --build-number ${{ github.run_number }} \
             --android-signing-key-store ../upload-keystore.jks \
