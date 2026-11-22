@@ -45,7 +45,7 @@ jobs:
       - name: Generate release keystore
         run: |
           keytool -genkeypair -v \
-            -keystore upload-keystore.jks \
+            -keystore ${{ github.workspace }}/upload-keystore.jks \
             -keyalg RSA -keysize 2048 \
             -validity 10000 \
             -alias upload \
@@ -63,7 +63,7 @@ jobs:
             --arch arm64-v8a \
             --build-version ${{ github.ref_name }} \
             --build-number ${{ github.run_number }} \
-            --android-signing-key-store ../upload-keystore.jks \
+            --android-signing-key-store ${{ github.workspace }}/upload-keystore.jks \
             --android-signing-key-store-password pillarsecret \
             --android-signing-key-password pillarsecret \
             --android-signing-key-alias upload
