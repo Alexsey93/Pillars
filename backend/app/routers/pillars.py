@@ -1,36 +1,15 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select
+from sqlalchemy import func, select
 
 from app.database import SessionDep
-from app.models import Pillar, Registry, User
+from app.deps import get_accessible_registry as _get_accessible_registry
+from app.models import Pillar, User
 from app.schemas import PillarCreate, PillarRead, PillarUpdate
 from app.users import current_active_user
 
-
-router = APIRouter(
-    prefix="/pillars",
-    tags=["pillars"],
-)
-
-
-async def _get_accessible_registry(
-    session: SessionDep, registry_id: int, user: User
-) -> Registry:
-    """Проверяет, что реестр существует и доступен пользователю."""
-    reg = await session.get(Registry, registry_id)
-    if reg is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Registry {registry_id} not found",
-        )
-    if not user.is_superuser and reg.owner_id != user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
-    return reg
+router = APIRouter(prefix="/pillars", tags=["pillars"])
 
 
 @router.post("/", response_model=PillarRead, status_code=status.HTTP_201_CREATED)
@@ -40,11 +19,20 @@ async def create_pillar(
     user: User = Depends(current_active_user),
 ):
     await _get_accessible_registry(session, data.registry_id, user)
+
     db_pillar = Pillar.model_validate(data)
     session.add(db_pillar)
     await session.commit()
     await session.refresh(db_pillar)
-    return db_pillar
+
+    # Вычисляем номер для ответа
+    stmt = select(func.count(Pillar.id)).where(Pillar.registry_id == data.registry_id)
+    result = await session.execute(stmt)
+    count = result.scalar_one()
+
+    pydantic_pillar = PillarRead.model_validate(db_pillar)
+    pydantic_pillar.number_in_registry = count
+    return pydantic_pillar
 
 
 @router.get("/", response_model=list[PillarRead])
@@ -55,25 +43,41 @@ async def list_pillars(
     skip: int = 0,
     limit: int = 100,
 ):
-    statement = select(Pillar)
-
-    # Если не админ — только опоры из своих реестров
-    if not user.is_superuser:
-        reg_stmt = select(Registry.id).where(Registry.owner_id == user.id)
-        reg_result = await session.execute(reg_stmt)
-        allowed_registry_ids = reg_result.scalars().all()
-
-        if not allowed_registry_ids:
-            return []
-
-        statement = statement.where(Pillar.registry_id.in_(allowed_registry_ids))
+    # Используем ROW_NUMBER() для плотной нумерации
+    stmt = select(
+        Pillar,
+        func.row_number().over(
+            partition_by=Pillar.registry_id,
+            order_by=Pillar.id
+        ).label("calc_number")
+    )
 
     if registry_id is not None:
-        statement = statement.where(Pillar.registry_id == registry_id)
+        await _get_accessible_registry(session, registry_id, user)
+        stmt = stmt.where(Pillar.registry_id == registry_id)
+    else:
+        if not user.is_superuser:
+            from app.models import Registry
+            reg_stmt = select(Registry.id).where(Registry.owner_id == user.id)
+            reg_result = await session.execute(reg_stmt)
+            allowed_ids = reg_result.scalars().all()
+            if not allowed_ids:
+                return []
+            stmt = stmt.where(Pillar.registry_id.in_(allowed_ids))
 
-    statement = statement.offset(skip).limit(limit)
-    result = await session.execute(statement)
-    return result.scalars().all()
+    stmt = stmt.order_by(Pillar.id).offset(skip).limit(limit)
+    result = await session.execute(stmt)
+
+    response = []
+    for row in result.all():
+        pillar = row[0]
+        calc_number = row[1]
+
+        pydantic_pillar = PillarRead.model_validate(pillar)
+        pydantic_pillar.number_in_registry = calc_number
+        response.append(pydantic_pillar)
+
+    return response
 
 
 @router.get("/{pillar_id}", response_model=PillarRead)
@@ -84,12 +88,20 @@ async def get_pillar(
 ):
     pillar = await session.get(Pillar, pillar_id)
     if pillar is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pillar {pillar_id} not found",
-        )
+        raise HTTPException(status_code=404, detail=f"Pillar {pillar_id} not found")
+
     await _get_accessible_registry(session, pillar.registry_id, user)
-    return pillar
+
+    stmt = select(func.count(Pillar.id)).where(
+        Pillar.registry_id == pillar.registry_id,
+        Pillar.id <= pillar.id
+    )
+    result = await session.execute(stmt)
+    calc_number = result.scalar_one()
+
+    pydantic_pillar = PillarRead.model_validate(pillar)
+    pydantic_pillar.number_in_registry = calc_number
+    return pydantic_pillar
 
 
 @router.patch("/{pillar_id}", response_model=PillarRead)
@@ -101,10 +113,8 @@ async def update_pillar(
 ):
     pillar = await session.get(Pillar, pillar_id)
     if pillar is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pillar {pillar_id} not found",
-        )
+        raise HTTPException(status_code=404, detail=f"Pillar {pillar_id} not found")
+
     await _get_accessible_registry(session, pillar.registry_id, user)
 
     update_data = data.model_dump(exclude_unset=True)
@@ -116,7 +126,17 @@ async def update_pillar(
     session.add(pillar)
     await session.commit()
     await session.refresh(pillar)
-    return pillar
+
+    stmt = select(func.count(Pillar.id)).where(
+        Pillar.registry_id == pillar.registry_id,
+        Pillar.id <= pillar.id
+    )
+    result = await session.execute(stmt)
+    calc_number = result.scalar_one()
+
+    pydantic_pillar = PillarRead.model_validate(pillar)
+    pydantic_pillar.number_in_registry = calc_number
+    return pydantic_pillar
 
 
 @router.delete("/{pillar_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -127,10 +147,9 @@ async def delete_pillar(
 ):
     pillar = await session.get(Pillar, pillar_id)
     if pillar is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Pillar {pillar_id} not found",
-        )
+        raise HTTPException(status_code=404, detail=f"Pillar {pillar_id} not found")
+
     await _get_accessible_registry(session, pillar.registry_id, user)
+
     await session.delete(pillar)
     await session.commit()

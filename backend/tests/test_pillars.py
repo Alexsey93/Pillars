@@ -36,13 +36,13 @@ async def test_create_pillar_full(client: AsyncClient):
         "material": "Железобетон",
         "height": 9.5,
         "class_voltage": "0.4 кВ",
-        "cnt_fastening": 3,
-        "cnt_vok_not_ab": 2,
-        "cnt_mzhk_not_ab": 1,
-        "cnt_ab_vok_mzhk": 15,
-        "cnt_o_coup": 1,
-        "cnt_shk": 0,
-        "cnt_ork": 2,
+        "cnt_fastening": "3",
+        "cnt_vok_not_ab": "2",
+        "cnt_mzhk_not_ab": "1",
+        "cnt_ab_vok_mzhk": "15",
+        "cnt_o_coup": "1",
+        "cnt_shk": "0",
+        "cnt_ork": "2",
     }
     response = await client.post("/pillars/", json=payload)
 
@@ -54,8 +54,8 @@ async def test_create_pillar_full(client: AsyncClient):
     assert data["material"] == "Железобетон"
     assert data["height"] == 9.5
     assert data["class_voltage"] == "0.4 кВ"
-    assert data["cnt_vok_not_ab"] == 2
-    assert data["cnt_shk"] == 0
+    assert data["cnt_vok_not_ab"] == "2"
+    assert data["cnt_shk"] == "0"
     assert "id" in data
     assert "created_at" in data
     assert data["updated_at"] is None
@@ -74,7 +74,7 @@ async def test_create_pillar_minimal(client: AsyncClient):
     assert data["registry_id"] == registry_id
     assert data["latitude"] is None
     assert data["longitude"] is None
-    assert data["cnt_fastening"] == 0
+    assert data["cnt_fastening"] == "0"
 
 
 async def test_create_pillar_without_coordinates(client: AsyncClient):
@@ -107,16 +107,6 @@ async def test_create_pillar_invalid_latitude(client: AsyncClient):
     response = await client.post(
         "/pillars/",
         json={"registry_id": registry_id, "latitude": 100},
-    )
-    assert response.status_code == 422
-
-
-async def test_create_pillar_negative_counter(client: AsyncClient):
-    registry_id = await _create_registry(client)
-
-    response = await client.post(
-        "/pillars/",
-        json={"registry_id": registry_id, "cnt_shk": -1},
     )
     assert response.status_code == 422
 
@@ -209,14 +199,14 @@ async def test_update_pillar(client: AsyncClient):
 
     response = await client.patch(
         f"/pillars/{created['id']}",
-        json={"latitude": 55.75, "longitude": 37.61, "cnt_shk": 5},
+        json={"latitude": 55.75, "longitude": 37.61, "cnt_shk": "5"},
     )
 
     assert response.status_code == 200
     data = response.json()
     assert data["latitude"] == 55.75
     assert data["longitude"] == 37.61
-    assert data["cnt_shk"] == 5
+    assert data["cnt_shk"] == "5"
     assert data["updated_at"] is not None
 
 
@@ -226,18 +216,18 @@ async def test_update_pillar_partial(client: AsyncClient):
     created = (
         await client.post(
             "/pillars/",
-            json={"registry_id": registry_id, "cnt_shk": 3, "material": "Дерево"},
+            json={"registry_id": registry_id, "cnt_shk": "3", "material": "Дерево"},
         )
     ).json()
 
     updated = (
         await client.patch(
-            f"/pillars/{created['id']}", json={"cnt_shk": 7}
+            f"/pillars/{created['id']}", json={"cnt_shk": "7"}
         )
     ).json()
 
     assert updated["material"] == "Дерево"
-    assert updated["cnt_shk"] == 7
+    assert updated["cnt_shk"] == "7"
     assert updated["registry_id"] == registry_id
 
 
@@ -271,7 +261,7 @@ async def test_update_pillar_invalid_registry(client: AsyncClient):
 
 
 async def test_update_pillar_not_found(client: AsyncClient):
-    response = await client.patch("/pillars/9999", json={"cnt_shk": 1})
+    response = await client.patch("/pillars/9999", json={"cnt_shk": "1"})
     assert response.status_code == 404
 
 

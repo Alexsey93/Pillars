@@ -5,9 +5,11 @@ import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy import update
 from sqlmodel import select
 
 from app.database import SessionDep
+from app.deps import get_accessible_registry
 from app.models import Registry, Pillar, DownloadToken, User
 from app.schemas import DownloadLinkResponse
 from app.users import current_active_user
@@ -24,9 +26,8 @@ async def create_download_link(
     user: User = Depends(current_active_user),
 ):
     """Создает одноразовую ссылку для скачивания реестра."""
-    registry = await session.get(Registry, registry_id)
-    if not registry:
-        raise HTTPException(status_code=404, detail="Registry not found")
+    # Проверка доступа: реестр существует и принадлежит пользователю (или он суперюзер)
+    await get_accessible_registry(session, registry_id, user)
 
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
@@ -45,25 +46,45 @@ async def create_download_link(
 
 @router.get("/download/{token}")
 async def download_by_token(token: str, session: SessionDep):
-    """Скачивает файл по одноразовому токену."""
-    statement = select(DownloadToken).where(DownloadToken.token == token)
-    result = await session.execute(statement)
+    """Скачивает файл по одноразовому токену.
+
+    Атомарно "сжигает" токен через UPDATE ... WHERE used=False AND expires_at > now.
+    Это защищает от гонки: два параллельных запроса не смогут оба получить файл.
+    """
+    now = datetime.now(timezone.utc)
+
+    stmt = (
+        update(DownloadToken)
+        .where(
+            DownloadToken.token == token,
+            DownloadToken.used == False,  # noqa: E712
+            DownloadToken.expires_at > now,
+        )
+        .values(used=True)
+        .returning(DownloadToken)
+    )
+    result = await session.execute(stmt)
     db_token = result.scalar_one_or_none()
-
-    if not db_token:
-        raise HTTPException(status_code=404, detail="Invalid token")
-
-    if db_token.used:
-        raise HTTPException(status_code=400, detail="Token already used")
-
-    if db_token.expires_at < datetime.now(timezone.utc):
-        raise HTTPException(status_code=400, detail="Token expired")
-
-    db_token.used = True
-    session.add(db_token)
     await session.commit()
 
+    if db_token is None:
+        # Различаем "не существует", "уже использован" и "просрочен" для UX
+        exists_stmt = select(DownloadToken).where(DownloadToken.token == token)
+        exists_result = await session.execute(exists_stmt)
+        existing = exists_result.scalar_one_or_none()
+
+        if existing is None:
+            raise HTTPException(status_code=404, detail="Invalid token")
+        if existing.used:
+            raise HTTPException(status_code=400, detail="Token already used")
+        if existing.expires_at <= now:
+            raise HTTPException(status_code=400, detail="Token expired")
+        raise HTTPException(status_code=400, detail="Token unavailable")
+
     registry = await session.get(Registry, db_token.registry_id)
+    if registry is None:
+        raise HTTPException(status_code=410, detail="Registry no longer exists")
+
     pillars_stmt = select(Pillar).where(Pillar.registry_id == db_token.registry_id)
     pillars_result = await session.execute(pillars_stmt)
     pillars = pillars_result.scalars().all()

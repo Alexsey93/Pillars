@@ -1,13 +1,15 @@
+import os
+import tempfile
 from typing import AsyncGenerator
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import (
     AsyncSession,
-    async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
 from app.config import settings
@@ -18,68 +20,96 @@ from app.users import UserManager, get_user_db
 
 
 # ============================================================
-# ДВИЖОК
+# ДВИЖОК (файловая SQLite + NullPool — изоляция сессий как в проде)
 # ============================================================
 
 @pytest_asyncio.fixture(scope="session")
 async def test_engine():
+    fd, db_path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+
     engine = create_async_engine(
-        "sqlite+aiosqlite://",
+        f"sqlite+aiosqlite:///{db_path}",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
+        poolclass=NullPool,
     )
+
+    # SQLite по умолчанию НЕ включает FK — включаем на КАЖДОМ соединении
+    @event.listens_for(engine.sync_engine, "connect")
+    def _fk_pragma_on_connect(dbapi_conn, _):
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+
     yield engine
+
     await engine.dispose()
+    try:
+        os.unlink(db_path)
+    except OSError:
+        pass
 
 
 # ============================================================
-# СЕССИЯ (с откатом)
+# СБРОС СХЕМЫ ПЕРЕД КАЖДЫМ ТЕСТОМ
 # ============================================================
 
-@pytest_asyncio.fixture
-async def session(test_engine) -> AsyncGenerator[AsyncSession, None]:
+@pytest_asyncio.fixture(autouse=True)
+async def _reset_db(test_engine):
     async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
-
-    async with AsyncSession(test_engine, expire_on_commit=False) as session:
-        yield session
+    yield
 
 
 # ============================================================
-# HTTP-КЛИЕНТ (С АВТОРИЗАЦИЕЙ)
+# HTTP-КЛИЕНТ (С АВТОРИЗАЦИЕЙ, новая сессия на каждый запрос)
 # ============================================================
 
 @pytest_asyncio.fixture
-async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(test_engine) -> AsyncGenerator[AsyncClient, None]:
     async def override_get_session():
-        yield session
+        async with AsyncSession(test_engine, expire_on_commit=False) as s:
+            yield s
 
     app.dependency_overrides[get_session] = override_get_session
 
     transport = ASGITransport(app=app)
-    
-    # Создаем клиент
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        # 1. Регистрируем тестового пользователя (чтобы пройти auth)
-        await ac.post(
+        reg_resp = await ac.post(
             "/auth/register",
             json={
-                "email": "testuser",
+                "email": "test@example.com",
                 "password": "testpassword",
                 "invite_code": settings.invite_code,
             },
         )
-        
-        # 2. Логинимся, чтобы получить токен
+        print(f"\n[DEBUG] register status: {reg_resp.status_code}, body: {reg_resp.text!r}")
+
         login_resp = await ac.post(
             "/auth/jwt/login",
-            data={"username": "testuser", "password": "testpassword"},
+            data={"username": "test@example.com", "password": "testpassword"},
         )
+        print(f"[DEBUG] login status: {login_resp.status_code}, body: {login_resp.text!r}")
+
         token = login_resp.json()["access_token"]
-        
-        # 3. Устанавливаем заголовок Authorization для всех последующих запросов
         ac.headers["Authorization"] = f"Bearer {token}"
+
+        # --- ВРЕМЕННЫЙ ДЕБАГ: что реально в БД ---
+        async with AsyncSession(test_engine) as s:
+            users = (await s.execute(text('SELECT id, email FROM "user"'))).all()
+            print(f"[DEBUG] users in DB: {users!r}")
+
+            regs = (await s.execute(text("SELECT id, owner_id, street FROM registry"))).all()
+            print(f"[DEBUG] registries in DB: {regs!r}")
+
+            # Проверим, как SQLite видит типы колонок
+            cols = (await s.execute(text("PRAGMA table_info('user')"))).all()
+            print(f"[DEBUG] PRAGMA table_info('user') id: {[c for c in cols if c[1] == 'id']!r}")
+
+            cols = (await s.execute(text("PRAGMA table_info('registry')"))).all()
+            print(f"[DEBUG] PRAGMA table_info('registry') owner_id: {[c for c in cols if c[1] == 'owner_id']!r}")
+        # --- /ВРЕМЕННЫЙ ДЕБАГ ---
 
         yield ac
 
