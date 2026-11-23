@@ -96,23 +96,12 @@ class RegistriesView:
         """Ручная проверка обновлений по нажатию кнопки."""
         try:
             result = await check_for_updates_direct(self.page)
-            print(f"[DEBUG view] check_for_updates_direct returned: {result}")
             if result == 'uptodate':
                 self.show_info("У вас уже установлена последняя версия.")
-            elif result == 'error_api':
-                self.show_info("Ошибка GitHub API (нет сети или репозиторий недоступен).")
-            elif result == 'error_no_tag':
-                self.show_info("В релизе не указан тег версии.")
-            elif result == 'error_invalid_version':
-                self.show_info("Некорректный формат версии в релизе.")
-            elif result == 'error_no_apk':
-                self.show_info("В релизе нет прикреплённого APK-файла.")
-            elif result == 'updated':
-                pass  # диалог уже показан внутри check_for_updates_direct
-            else:
-                self.show_info(f"Неизвестный результат: {result}")
+            elif result == 'error':
+                self.show_info("Не удалось проверить обновления (сеть или релиз недоступен).")
+            # 'updated' — диалог уже показан внутри check_for_updates_direct
         except Exception as err:
-            print(f"[DEBUG view] exception: {err}")
             self.show_error(f"Ошибка проверки обновлений: {err}")
 
     def _edit_registry(self, reg: Registry):
